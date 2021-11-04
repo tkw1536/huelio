@@ -1,81 +1,45 @@
 package huelio
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 )
 
 type Server struct {
-	CORSDomains string
-
-	refreshInit       sync.Once
-	refreshChan       chan struct{}
-	refreshCancelChan chan struct{}
+	CORSDomains     string
+	RefreshInterval time.Duration
 
 	Logger *log.Logger
-
-	// Engine is the engine used by the server
 	Engine *Engine
 }
 
-// refresh causes a server refresh, and returs once the refresh has been processed.
-func (server *Server) RefreshOnce() {
-	server.ensureRefreshChan()
-	server.refreshChan <- struct{}{}
-}
-
-// RefreshInterval refreshes the server once
-func (server *Server) RefreshInterval(interval time.Duration) {
-	server.ensureRefreshChan()
-	go func(ticker *time.Ticker) {
+// Start starts server background tasks.
+// It blocks and should be started in a seperate goroutine.
+func (server *Server) Start(context context.Context) {
+	var c <-chan time.Time
+	if server.RefreshInterval > 0 {
+		ticker := time.NewTicker(server.RefreshInterval)
 		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				go server.RefreshOnce()
-			case <-server.refreshCancelChan:
-				return
-			}
-		}
-	}(time.NewTicker(interval))
-}
 
-// Close cloeses the server and stops any ongoing refreshes
-func (server *Server) Close() {
-	server.ensureRefreshChan()
-	select {
-	case <-server.refreshCancelChan:
-	default:
-		server.Logger.Println("closing server")
-		close(server.refreshCancelChan)
+		c = ticker.C
 	}
-}
 
-func (server *Server) ensureRefreshChan() {
-	server.refreshInit.Do(func() {
-		server.refreshChan = make(chan struct{})
-		server.refreshCancelChan = make(chan struct{})
-		go func() {
-			for {
-				select {
-				case <-server.refreshCancelChan:
-					return
-				case <-server.refreshChan:
-					go func() {
-						server.Logger.Print("refreshing caches")
-						server.Engine.Use(nil)
-						server.Logger.Printf("finished refreshing caches")
-					}()
-				}
-			}
-		}()
-	})
+	for {
+		select {
+		case <-c:
+			server.Logger.Printf("Refreshing Index")
+			server.Engine.RefreshIndex()
+			server.Logger.Printf("Index refreshed")
+		case <-context.Done():
+			return
+		}
+	}
 }
 
 type jsonMessage struct {
@@ -134,11 +98,7 @@ func (server *Server) doAction(w http.ResponseWriter, r *http.Request) error {
 	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
 		return errors.Wrap(err, "Unable to parse body")
 	}
-	bridge, err := server.Engine.Bridge()
-	if err != nil {
-		return errors.Wrap(err, "Unable to find bridge")
-	}
-	return action.Do(bridge, server.Logger)
+	return server.Engine.Do(action)
 
 }
 

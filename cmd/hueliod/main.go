@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net/http"
@@ -13,16 +14,21 @@ import (
 
 func main() {
 	server := &huelio.Server{
-		Engine: huelio.NewEngine(&huego.Bridge{Host: apiHost, User: apiUsername}),
-
+		Engine: &huelio.Engine{
+			Connect: func() (bridge *huego.Bridge, err error) {
+				time.Sleep(1 * time.Second)
+				return &huego.Bridge{Host: apiHost, User: apiUsername}, nil
+			},
+		},
 		Logger: log.New(os.Stderr, "", log.LstdFlags),
+
+		RefreshInterval: refreshInterval,
 	}
 	if apiCORS {
 		server.CORSDomains = "*"
 	}
 
-	server.RefreshInterval(refreshInterval)
-	defer server.Close()
+	go server.Start(context.Background())
 
 	server.Logger.Printf("Listening on %q", hostname)
 	http.ListenAndServe(hostname, server)

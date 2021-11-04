@@ -24,8 +24,8 @@ func (r ResultSlice) Swap(i, j int) {
 
 // LesserPriority checjk
 func (action QueryAction) LesserPriority(other QueryAction) bool {
-	scoresA := other.ScoreCache
-	scoresB := action.ScoreCache
+	scoresA := other.scores
+	scoresB := action.scores
 
 	var b float64
 	for i, a := range scoresA {
@@ -39,10 +39,10 @@ func (action QueryAction) LesserPriority(other QueryAction) bool {
 
 func (r ResultSlice) ComputeScores() {
 	for i, res := range r {
-		r[i].ScoreCache[0] = res.MatchScore()
-		r[i].ScoreCache[1] = res.KindScore()
-		r[i].ScoreCache[2] = res.ItemIndexScore()
-		r[i].ScoreCache[3] = res.ActionIndexScore()
+		r[i].scores[0] = res.MatchScore()
+		r[i].scores[1] = res.KindScore()
+		r[i].scores[2] = res.ItemIndexScore()
+		r[i].scores[3] = res.ActionIndexScore()
 	}
 }
 

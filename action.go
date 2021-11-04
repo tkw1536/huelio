@@ -3,7 +3,6 @@ package huelio
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/amimof/huego"
 	"github.com/pkg/errors"
@@ -11,7 +10,7 @@ import (
 
 // QueryAction represents the result of a query
 type QueryAction struct {
-	ScoreCache  [4]float64 `json:"scores"`
+	scores      [4]float64
 	matchScores [][]float64
 
 	Group *HueGroup `json:"group,omitempty"`
@@ -19,11 +18,20 @@ type QueryAction struct {
 
 	Scene *HueScene `json:"scene,omitempty"`
 	OnOff BoolOnOff `json:"onoff,omitempty"`
+
+	Special *HueSpecial `json:"special,omitempty"`
+}
+
+type HueSpecial struct {
+	ID   string `json:"id"`
+	Data struct {
+		Message string `json:"message"`
+	} `json:"data"`
 }
 
 var ErrInvalidAction = errors.New("action.Do: Invalid action")
 
-func (action QueryAction) Do(bridge *huego.Bridge, logger *log.Logger) error {
+func (action QueryAction) Do(bridge *huego.Bridge) error {
 	switch {
 	case action.Group != nil:
 		if err := action.Group.Refresh(bridge); err != nil {
