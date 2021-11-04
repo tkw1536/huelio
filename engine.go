@@ -136,9 +136,9 @@ func (engine *Engine) Run(queries []Query) (results []QueryAction, err error) {
 			}
 		}); len(scores) > 0 {
 			results = append(results, QueryAction{
-				Score: scores,
-				Group: theGroup,
-				OnOff: BoolOn,
+				matchScores: scores,
+				Group:       theGroup,
+				OnOff:       BoolOn,
 			})
 		}
 
@@ -151,9 +151,9 @@ func (engine *Engine) Run(queries []Query) (results []QueryAction, err error) {
 			}
 		}); len(scores) > 0 {
 			results = append(results, QueryAction{
-				Score: scores,
-				Group: theGroup,
-				OnOff: BoolOff,
+				matchScores: scores,
+				Group:       theGroup,
+				OnOff:       BoolOff,
 			})
 		}
 
@@ -168,9 +168,9 @@ func (engine *Engine) Run(queries []Query) (results []QueryAction, err error) {
 				return ScoreText(q.Change.Scene, s.Name)
 			}); len(scores) > 0 {
 				results = append(results, QueryAction{
-					Score: scores,
-					Group: theGroup,
-					Scene: NewHueScene(s),
+					matchScores: scores,
+					Group:       theGroup,
+					Scene:       NewHueScene(s),
 				})
 			}
 		}
@@ -196,9 +196,9 @@ func (engine *Engine) Run(queries []Query) (results []QueryAction, err error) {
 			}
 		}); len(scores) > 0 {
 			results = append(results, QueryAction{
-				Score: scores,
-				Light: theLight,
-				OnOff: BoolOn,
+				matchScores: scores,
+				Light:       theLight,
+				OnOff:       BoolOn,
 			})
 		}
 
@@ -211,9 +211,9 @@ func (engine *Engine) Run(queries []Query) (results []QueryAction, err error) {
 			}
 		}); len(scores) > 0 {
 			results = append(results, QueryAction{
-				Score: scores,
-				Light: theLight,
-				OnOff: BoolOff,
+				matchScores: scores,
+				Light:       theLight,
+				OnOff:       BoolOff,
 			})
 		}
 

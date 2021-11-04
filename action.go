@@ -1,6 +1,7 @@
 package huelio
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -10,7 +11,8 @@ import (
 
 // QueryAction represents the result of a query
 type QueryAction struct {
-	Score [][]float64 `json:"scores"` // scores based on matching group and light
+	ScoreCache  [4]float64 `json:"scores"`
+	matchScores [][]float64
 
 	Group *HueGroup `json:"group,omitempty"`
 	Light *HueLight `json:"light,omitempty"`
@@ -89,6 +91,15 @@ func NewHueGroup(group huego.Group) *HueGroup {
 	}
 }
 
+func (group *HueGroup) UnmarshalJSON(data []byte) error {
+	id := &struct {
+		ID int `json:"id"`
+	}{}
+	err := json.Unmarshal(data, &id)
+	group.ID = id.ID
+	return err
+}
+
 func (group *HueGroup) Refresh(bridge *huego.Bridge) error {
 	data, err := bridge.GetGroup(group.ID)
 	if data != nil {
@@ -109,6 +120,15 @@ func NewHueLight(light huego.Light) *HueLight {
 	}
 }
 
+func (light *HueLight) UnmarshalJSON(data []byte) error {
+	id := &struct {
+		ID int `json:"id"`
+	}{}
+	err := json.Unmarshal(data, &id)
+	light.ID = id.ID
+	return err
+}
+
 func (light *HueLight) Refresh(bridge *huego.Bridge) error {
 	data, err := bridge.GetLight(light.ID)
 	if data != nil {
@@ -127,6 +147,15 @@ func NewHueScene(scene huego.Scene) *HueScene {
 		ID:   scene.ID,
 		Data: scene,
 	}
+}
+
+func (scene *HueScene) UnmarshalJSON(data []byte) error {
+	id := &struct {
+		ID string `json:"id"`
+	}{}
+	err := json.Unmarshal(data, &id)
+	scene.ID = id.ID
+	return err
 }
 
 func (scene *HueScene) Refresh(bridge *huego.Bridge) error {

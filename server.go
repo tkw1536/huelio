@@ -12,7 +12,7 @@ import (
 )
 
 type Server struct {
-	CORS bool
+	CORSDomains string
 
 	refreshInit       sync.Once
 	refreshChan       chan struct{}
@@ -67,8 +67,11 @@ func (server *Server) ensureRefreshChan() {
 				case <-server.refreshCancelChan:
 					return
 				case <-server.refreshChan:
-					server.Logger.Println("refeshing engine")
-					go server.Engine.Use(nil)
+					go func() {
+						server.Logger.Print("refreshing caches")
+						server.Engine.Use(nil)
+						server.Logger.Printf("finished refreshing caches")
+					}()
 				}
 			}
 		}()
@@ -83,12 +86,13 @@ type jsonMessage struct {
 func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodOptions:
+		log.Println("OPTIONS")
 		server.writeJSON(w, http.StatusOK, jsonMessage{Message: "this is fine"})
 	case http.MethodPost:
-		server.Logger.Println("got action")
+		log.Println("GET")
 		server.serveAction(w, r)
 	case http.MethodGet:
-		server.Logger.Println("got query")
+		log.Println("POST")
 		server.serveQuery(w, r)
 	default:
 		server.writeJSON(w, http.StatusMethodNotAllowed, jsonMessage{Message: "method allowed"})
@@ -145,10 +149,11 @@ func (server *Server) writeJSON(w http.ResponseWriter, statusCode int, content i
 		return
 	}
 	h := w.Header()
+
 	h.Add("Content-Type", "application/json")
-	if server.CORS {
-		h.Add("Access-Control-Allow-Origin", "*")
-		h.Add("Access-Control-Allow-Methods", "*")
+	if server.CORSDomains != "" {
+		h.Add("Access-Control-Allow-Origin", server.CORSDomains)
+		h.Add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
 		h.Add("Access-Control-Allow-Headers", "*")
 	}
 	w.WriteHeader(statusCode)

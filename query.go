@@ -18,11 +18,7 @@ func (q Query) String() string {
 	return fmt.Sprintf("%q: %s", q.Name, q.Change)
 }
 
-// ParseQuery parses a query.
-// It can contain the following syntaxes:
-// ["turn"] "off"|"on" ROOM|LIGHT
-// ["turn"] ROOM|LIGHT "to" ACTION
-// ROOM|LIGHT|ACTION
+// ParseQuery parses a query from the string
 func ParseQuery(value string) (passes []Query) {
 	// split the string into fields, normalizing to lower cases
 	fields := strings.Fields(strings.ToLower(value))

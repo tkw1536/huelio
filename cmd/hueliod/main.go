@@ -13,11 +13,14 @@ import (
 
 func main() {
 	server := &huelio.Server{
-		Logger: log.New(os.Stderr, "", log.LstdFlags),
 		Engine: huelio.NewEngine(&huego.Bridge{Host: apiHost, User: apiUsername}),
 
-		CORS: apiCORS,
+		Logger: log.New(os.Stderr, "", log.LstdFlags),
 	}
+	if apiCORS {
+		server.CORSDomains = "*"
+	}
+
 	server.RefreshInterval(refreshInterval)
 	defer server.Close()
 

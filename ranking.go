@@ -7,15 +7,25 @@ import (
 
 type ResultSlice []QueryAction
 
-func (r ResultSlice) Len() int           { return len(r) }
-func (r ResultSlice) Less(i, j int) bool { return r[i].LesserPriority(r[j]) }
-func (r ResultSlice) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r ResultSlice) Sort()              { sort.Sort(r) }
+func (r ResultSlice) Sort() {
+	r.ComputeScores()
+	sort.Sort(r)
+}
+
+func (r ResultSlice) Len() int {
+	return len(r)
+}
+func (r ResultSlice) Less(i, j int) bool {
+	return r[i].LesserPriority(r[j])
+}
+func (r ResultSlice) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
+}
 
 // LesserPriority checjk
 func (action QueryAction) LesserPriority(other QueryAction) bool {
-	scoresA := other.Scores()
-	scoresB := action.Scores()
+	scoresA := other.ScoreCache
+	scoresB := action.ScoreCache
 
 	var b float64
 	for i, a := range scoresA {
@@ -27,21 +37,22 @@ func (action QueryAction) LesserPriority(other QueryAction) bool {
 	return false
 }
 
-func (action QueryAction) Scores() (scores [4]float64) {
-	scores[0] = action.MatchScore()
-	scores[1] = action.KindScore()
-	scores[2] = action.ItemIndexScore()
-	scores[3] = action.ActionIndexScore()
-	return
+func (r ResultSlice) ComputeScores() {
+	for i, res := range r {
+		r[i].ScoreCache[0] = res.MatchScore()
+		r[i].ScoreCache[1] = res.KindScore()
+		r[i].ScoreCache[2] = res.ItemIndexScore()
+		r[i].ScoreCache[3] = res.ActionIndexScore()
+	}
 }
 
 func (action QueryAction) MatchScore() (score float64) {
-	if len(action.Score) == 0 {
+	if len(action.matchScores) == 0 {
 		return 0
 	}
-	score0 := action.Score[0][0]
-	score1 := action.Score[0][1]
-	for _, s := range action.Score {
+	score0 := action.matchScores[0][0]
+	score1 := action.matchScores[0][1]
+	for _, s := range action.matchScores {
 		if s[0] > score0 {
 			score0 = s[0]
 		}
