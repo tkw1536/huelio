@@ -1,12 +1,12 @@
 package huelio
 
 import (
-	"errors"
 	"strconv"
 	"sync"
 
 	"github.com/amimof/huego"
 	"github.com/lithammer/fuzzysearch/fuzzy"
+	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -26,51 +26,65 @@ type Engine struct {
 // NewEngine creates a new engine and initializes caches
 func NewEngine(bridge *huego.Bridge) *Engine {
 	engine := &Engine{err: ErrNoBridge}
-	engine.m.Lock()
-	go engine.useInternal(bridge)
+	go engine.Use(bridge)
 
 	return engine
 }
 
+var ErrNoBridge = errors.New("engine: No Bridge")
+
 // Use tells engine to use the provided bridge.
 // when bridge is nil, refreshes caches from the current bridge.
 func (engine *Engine) Use(bridge *huego.Bridge) error {
-	engine.m.Lock()
-	return engine.useInternal(bridge)
-}
+	// if the bridge is nil, use the bridge from the engine
+	if bridge == nil {
+		func() {
+			engine.m.RLock()
+			defer engine.m.RUnlock()
 
-var ErrNoBridge = errors.New("engine: no bridge available")
-
-// useInternal sets bridge.
-// The caller must ensure to obtain an appropriate lock on m.
-func (engine *Engine) useInternal(bridge *huego.Bridge) error {
-	defer engine.m.Unlock()
-
-	if bridge != nil {
-		engine.bridge = bridge
+			bridge = engine.bridge
+		}()
 	}
-	if engine.bridge == nil {
+
+	// if no bridge exists anywhere, we're done.
+	// no need to lock writes.
+	if bridge == nil {
 		return ErrNoBridge
 	}
 
+	// fetch all the lights, groups, and scenes!
 	eg := &errgroup.Group{}
+
+	var groups []huego.Group
+	var lights []huego.Light
+	var scenes []huego.Scene
+
 	eg.Go(func() (err error) {
-		engine.groups, err = engine.bridge.GetGroups()
+		groups, err = bridge.GetGroups()
+		return
+	})
+	eg.Go(func() (err error) {
+		lights, err = bridge.GetLights()
+		return
+	})
+	eg.Go(func() (err error) {
+		scenes, err = bridge.GetScenes()
 		return
 	})
 
-	eg.Go(func() (err error) {
-		engine.lights, err = engine.bridge.GetLights()
-		return
-	})
+	err := eg.Wait()
 
-	eg.Go(func() (err error) {
-		engine.scenes, err = engine.bridge.GetScenes()
-		return
-	})
+	// store the results
+	engine.m.Lock()
+	defer engine.m.Unlock()
 
-	engine.err = eg.Wait()
-	return engine.err
+	engine.bridge = bridge
+	engine.err = err
+	engine.groups = groups
+	engine.lights = lights
+	engine.scenes = scenes
+
+	return err
 }
 
 // Bridge returns the current bridge, if it has been initialized.
@@ -101,87 +115,116 @@ func (engine *Engine) Run(queries []Query) (results []QueryAction, err error) {
 		return nil, engine.err
 	}
 
-	for i, group := range engine.groups {
-		theGroup := &ActionGroup{
-			ID:   group.ID,
-			Data: &engine.groups[i],
-		}
+	var scoring ScoreQueries
+	for _, g := range engine.groups {
+		scoring.Use(queries)
 
-		// find queries that match
-		qs, ok := filterQueries(queries, func(q Query) bool { return fuzzy.MatchFold(q.Name, group.Name) })
-		if !ok {
+		if !scoring.Score(func(q Query) float64 {
+			return ScoreText(q.Name, g.Name)
+		}) {
 			continue
 		}
 
-		// match "on" and "off" actions
-		if anyQueries(qs, func(q Query) bool { return q.Action.IsOnOff("on") }) {
+		theGroup := NewHueGroup(g)
+
+		// match the word "on"
+		if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
+			if q.Change.IsOnOff(BoolOn) {
+				return 0
+			} else {
+				return -1
+			}
+		}); len(scores) > 0 {
 			results = append(results, QueryAction{
+				Score: scores,
 				Group: theGroup,
-				OnOff: "on",
+				OnOff: BoolOn,
 			})
 		}
 
-		if anyQueries(qs, func(q Query) bool { return q.Action.IsOnOff("off") }) {
+		// match the word "off"
+		if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
+			if q.Change.IsOnOff(BoolOff) {
+				return 0
+			} else {
+				return -1
+			}
+		}); len(scores) > 0 {
 			results = append(results, QueryAction{
+				Score: scores,
 				Group: theGroup,
-				OnOff: "off",
+				OnOff: BoolOff,
 			})
 		}
 
 		// iterate over scenes in this group!
-		gID := strconv.Itoa(group.ID)
-		for j, s := range engine.scenes {
+		gID := strconv.Itoa(g.ID)
+		for _, s := range engine.scenes {
 			if s.Group != gID {
 				continue
 			}
 
-			if !anyQueries(qs, func(q Query) bool { return fuzzy.MatchFold(q.Action.Scene, s.Name) }) {
-				continue
+			if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
+				return ScoreText(q.Change.Scene, s.Name)
+			}); len(scores) > 0 {
+				results = append(results, QueryAction{
+					Score: scores,
+					Group: theGroup,
+					Scene: NewHueScene(s),
+				})
 			}
-
-			theScene := &ActionScene{
-				ID:   s.ID,
-				Data: &engine.scenes[j],
-			}
-
-			results = append(results, QueryAction{
-				Group: theGroup,
-				Scene: theScene,
-			})
-
 		}
 	}
 
-	for i, light := range engine.lights {
-		// find if this light matches any of the queries
-		// and if so, continue checking scenes
-		qs, ok := filterQueries(queries, func(q Query) bool { return fuzzy.MatchFold(q.Name, light.Name) })
-		if !ok {
+	for _, l := range engine.lights {
+		scoring.Use(queries)
+
+		if !scoring.Score(func(q Query) float64 {
+			return ScoreText(q.Name, l.Name)
+		}) {
 			continue
 		}
-		// match the distinct OnOff Queries
 
-		theLight := &ActionLight{
-			ID:   light.ID,
-			Data: &engine.lights[i],
-		}
+		theLight := NewHueLight(l)
 
-		if anyQueries(qs, func(q Query) bool { return q.Action.IsOnOff("on") }) {
+		// match the word "on"
+		if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
+			if q.Change.IsOnOff(BoolOn) {
+				return 0
+			} else {
+				return -1
+			}
+		}); len(scores) > 0 {
 			results = append(results, QueryAction{
+				Score: scores,
 				Light: theLight,
-				OnOff: "on",
+				OnOff: BoolOn,
 			})
 		}
 
-		if anyQueries(qs, func(q Query) bool { return q.Action.IsOnOff("off") }) {
+		// match the word "off"
+		if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
+			if q.Change.IsOnOff(BoolOff) {
+				return 0
+			} else {
+				return -1
+			}
+		}); len(scores) > 0 {
 			results = append(results, QueryAction{
+				Score: scores,
 				Light: theLight,
-				OnOff: "off",
+				OnOff: BoolOff,
 			})
 		}
 
-		// TODO: Matching scenes
 	}
 
+	ResultSlice(results).Sort()
+
 	return results, nil
+}
+
+func ScoreText(source, target string) float64 {
+	score := float64(fuzzy.RankMatchNormalizedFold(source, target))
+	return score / float64(len(target))
 }

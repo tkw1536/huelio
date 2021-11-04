@@ -3,40 +3,19 @@ package huelio
 import (
 	"fmt"
 	"strings"
+	"sync"
 )
 
-// Query desribes a query for the huelio system
+// Query describes an change for the huelio system.
 type Query struct {
-	// Name of the object (light or scene) to modify
+	// Name is the name of a Hue Object to fuzzy match against
 	Name string
-
-	// Action is the Action to perform
-	Action Action
+	// Change is a change to perform to the specified object
+	Change Change
 }
 
 func (q Query) String() string {
-	return fmt.Sprintf("%q: %s", q.Name, q.Action)
-}
-
-// anyQueries checks if any of the queries matches the provided predicate
-func anyQueries(queries []Query, pred func(q Query) bool) bool {
-	for _, q := range queries {
-		if pred(q) {
-			return true
-		}
-	}
-	return false
-}
-
-// filterQueries finds all queries that match a given predicate
-func filterQueries(queries []Query, pred func(q Query) bool) (matches []Query, any bool) {
-	matches = make([]Query, 0, len(queries))
-	for _, q := range queries {
-		if pred(q) {
-			matches = append(matches, q)
-		}
-	}
-	return matches, len(matches) != 0
+	return fmt.Sprintf("%q: %s", q.Name, q.Change)
 }
 
 // ParseQuery parses a query.
@@ -45,126 +24,104 @@ func filterQueries(queries []Query, pred func(q Query) bool) (matches []Query, a
 // ["turn"] ROOM|LIGHT "to" ACTION
 // ROOM|LIGHT|ACTION
 func ParseQuery(value string) (passes []Query) {
-	fields := strings.Fields(strings.ToLower(value)) // TODO: parse me!
+	// split the string into fields, normalizing to lower cases
+	fields := strings.Fields(strings.ToLower(value))
 	if len(fields) == 0 {
 		return nil
 	}
 
-	// compute one-based indexes of everything
-	// we use 1-based indexes to avoid having to initialize non-existing values.
-	fieldIndexes := make(map[string]int, len(fields)+3)
-	for i, f := range fields {
-		if _, ok := fieldIndexes[f]; !ok {
-			fieldIndexes[f] = i + 1
-		}
-	}
-
-	//lint:ignore S1005 ignore non-existence
-	turnIndex, _ := fieldIndexes["turn"]
-	//lint:ignore S1005 ignore non-existence
-	onIndex, _ := fieldIndexes["on"]
-	//lint:ignore S1005 ignore non-existence
-	offIndex, _ := fieldIndexes["off"]
-	//lint:ignore S1005 ignore non-existence
-	toIndex, _ := fieldIndexes["to"]
+	// get a map of indexes to grab from the pool
+	indexes := makeQueryIndexes(fields)
+	defer queryIndexPool.Put(indexes)
 
 	// "turn" "on" | "off" ROOM|LIGHT
-	if turnIndex == 1 && (onIndex == 2 || offIndex == 2) && len(fields) >= 3 {
+	if indexes["turn"] == 0 && (indexes[string(BoolOn)] == 2 || indexes[string(BoolOff)] == 2) && len(fields) >= 3 {
 		passes = append(passes, Query{
 			Name:   strings.Join(fields[2:], " "),
-			Action: ParseAction(fields[1]),
+			Change: ParseChange(fields[1]),
 		})
 	}
 
 	// "on" | "off" light
-	if (onIndex == 1 || offIndex == 1) && len(fields) >= 2 {
+	if (indexes[string(BoolOn)] == 1 || indexes[string(BoolOff)] == 1) && len(fields) >= 2 {
 		passes = append(passes, Query{
 			Name:   strings.Join(fields[1:], " "),
-			Action: ParseAction(fields[0]),
+			Change: ParseChange(fields[0]),
 		})
 	}
 
 	// [turn] light "on" | "off"
-	if onIndex == len(fields) || offIndex == len(fields) && len(fields) >= 2 {
+	if indexes[string(BoolOn)] == len(fields) || indexes[string(BoolOff)] == len(fields) && len(fields) >= 2 {
 		last := len(fields) - 1
 		var name string
-		if turnIndex == 1 {
+		if indexes["turn"] == 1 {
 			name = strings.Join(fields[1:last], " ")
 		} else {
 			name = strings.Join(fields[:last], " ")
 		}
 		passes = append(passes, Query{
 			Name:   name,
-			Action: ParseAction(fields[last]),
+			Change: ParseChange(fields[last]),
 		})
 	}
 
 	// [turn] ROOM|LIGHT to ACTION
-	if toIndex > 0 && len(fields) > toIndex {
-		action := ParseAction(strings.Join(fields[toIndex:], " "))
-		if turnIndex == 0 {
+	if indexes["to"] > 1 && len(fields) > indexes["to"]+1 {
+		action := ParseChange(strings.Join(fields[indexes["to"]+1:], " "))
+		if indexes["turn"] == 0 {
 			passes = append(passes, Query{
-				Name:   strings.Join(fields[1:toIndex-1], " "),
-				Action: action,
+				Name:   strings.Join(fields[1:indexes["to"]], " "),
+				Change: action,
 			})
 		} else {
 			passes = append(passes, Query{
-				Name:   strings.Join(fields[:toIndex-1], " "),
-				Action: action,
+				Name:   strings.Join(fields[:indexes["to"]], " "),
+				Change: action,
 			})
 		}
 	}
 
-	// ROOM | LIGHT
-	passes = append(passes, Query{
-		Name:   strings.Join(fields, " "),
-		Action: ParseAction(""),
-	})
-
-	// ACTION
-	passes = append(passes, Query{
-		Name:   "",
-		Action: ParseAction(strings.Join(fields, " ")),
-	})
+	for i := 0; i <= len(fields); i++ {
+		passes = append(passes, Query{
+			Name:   strings.Join(fields[:i], " "),
+			Change: ParseChange(strings.Join(fields[i:], " ")),
+		})
+	}
 
 	return
 }
 
-// Action describes an action to perform
-type Action struct {
-	// Exactly one of these must be non-zero
-	Scene string // turn on a special scene
-
-	OnOff string // turn the light on or off
+var parseQueryPrebuilts = map[string]struct{}{
+	"turn":          {},
+	string(BoolOn):  {},
+	string(BoolOff): {},
+	"to":            {},
 }
 
-func (act Action) IsOnOff(onoff string) bool {
-	return act.Scene == "" && (act.OnOff == "" || act.OnOff == onoff)
+var queryIndexPool = &sync.Pool{
+	New: func() interface{} {
+		return make(map[string]int, len(parseQueryPrebuilts))
+	},
 }
 
-func (act Action) String() string {
-	if act.Scene != "" {
-		return fmt.Sprintf("Activate Scene %q", act.Scene)
-	}
-	if act.OnOff == "on" {
-		return "turn on"
-	}
-	if act.OnOff == "off" {
-		return "turn off"
-	}
-	return "<invalid>"
-}
-
-// ParseAction parses a string into an action.
+// makeQueryIndexes computes indexes of parseQueryPrebuilts in values.
 //
-// This currently only catches special actions
-func ParseAction(value string) Action {
-	value = strings.TrimSpace(strings.ToLower(value))
-	switch value {
-	case "on", "off":
-		return Action{OnOff: value}
-	// todo: parse colors etc
-	default:
-		return Action{Scene: value}
+// The returned map, if not used otherwise, should be returned to queryIndexPool by the caller.
+func makeQueryIndexes(values []string) map[string]int {
+	// set the required indexes to 0
+	indexes := queryIndexPool.Get().(map[string]int)
+	for k := range parseQueryPrebuilts {
+		indexes[k] = 0
 	}
+
+	for i, v := range values {
+		if _, ok := parseQueryPrebuilts[v]; !ok {
+			continue
+		}
+		if indexes[v] == 0 {
+			indexes[v] = i
+		}
+	}
+
+	return indexes
 }

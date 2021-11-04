@@ -4,48 +4,19 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/pkg/errors"
-
 	"github.com/amimof/huego"
+	"github.com/pkg/errors"
 )
-
-type ActionGroup struct {
-	ID   int          `json:"id"`
-	Data *huego.Group `json:"data"`
-}
-
-func (group *ActionGroup) Refresh(bridge *huego.Bridge) (err error) {
-	group.Data, err = bridge.GetGroup(group.ID)
-	return
-}
-
-type ActionLight struct {
-	ID   int          `json:"id"`
-	Data *huego.Light `json:"data"`
-}
-
-func (light *ActionLight) Refresh(bridge *huego.Bridge) (err error) {
-	light.Data, err = bridge.GetLight(light.ID)
-	return
-}
-
-type ActionScene struct {
-	ID   string       `json:"id"`
-	Data *huego.Scene `json:"data"`
-}
-
-func (scene *ActionScene) Refresh(bridge *huego.Bridge) (err error) {
-	scene.Data, err = bridge.GetScene(scene.ID)
-	return
-}
 
 // QueryAction represents the result of a query
 type QueryAction struct {
-	Group *ActionGroup `json:"group,omitempty"`
-	Light *ActionLight `json:"light,omitempty"`
+	Score [][]float64 `json:"scores"` // scores based on matching group and light
 
-	Scene *ActionScene `json:"scene,omitempty"`
-	OnOff string       `json:"onoff,omitempty"`
+	Group *HueGroup `json:"group,omitempty"`
+	Light *HueLight `json:"light,omitempty"`
+
+	Scene *HueScene `json:"scene,omitempty"`
+	OnOff BoolOnOff `json:"onoff,omitempty"`
 }
 
 var ErrInvalidAction = errors.New("action.Do: Invalid action")
@@ -103,4 +74,65 @@ func (res QueryAction) String() string {
 	}
 
 	return fmt.Sprintf("%s: %s", name, action)
+}
+
+// HueGroup represents a hue group
+type HueGroup struct {
+	ID   int         `json:"id"`
+	Data huego.Group `json:"data"`
+}
+
+func NewHueGroup(group huego.Group) *HueGroup {
+	return &HueGroup{
+		ID:   group.ID,
+		Data: group,
+	}
+}
+
+func (group *HueGroup) Refresh(bridge *huego.Bridge) error {
+	data, err := bridge.GetGroup(group.ID)
+	if data != nil {
+		group.Data = *data
+	}
+	return err
+}
+
+type HueLight struct {
+	ID   int         `json:"id"`
+	Data huego.Light `json:"data"`
+}
+
+func NewHueLight(light huego.Light) *HueLight {
+	return &HueLight{
+		ID:   light.ID,
+		Data: light,
+	}
+}
+
+func (light *HueLight) Refresh(bridge *huego.Bridge) error {
+	data, err := bridge.GetLight(light.ID)
+	if data != nil {
+		light.Data = *data
+	}
+	return err
+}
+
+type HueScene struct {
+	ID   string      `json:"id"`
+	Data huego.Scene `json:"data"`
+}
+
+func NewHueScene(scene huego.Scene) *HueScene {
+	return &HueScene{
+		ID:   scene.ID,
+		Data: scene,
+	}
+}
+
+func (scene *HueScene) Refresh(bridge *huego.Bridge) error {
+	data, err := bridge.GetScene(scene.ID)
+	if data != nil {
+		scene.Data = *data
+	}
+	return err
 }
