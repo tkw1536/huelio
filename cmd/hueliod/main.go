@@ -83,6 +83,15 @@ var apiCORS bool
 var refreshInterval time.Duration
 
 func init() {
+	var legalFlag bool
+	flag.BoolVar(&legalFlag, "legal", legalFlag, "display legal notices and exit")
+	defer func() {
+		if legalFlag {
+			fmt.Print(huelio.LegalText())
+			os.Exit(0)
+		}
+	}()
+
 	defer flag.Parse()
 
 	flag.DurationVar(&refreshInterval, "refresh", 1*time.Minute, "how often to refresh bridge cache")
