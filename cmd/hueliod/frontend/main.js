@@ -2,7 +2,6 @@ var baseURL = '/api/';
 try {
     baseURL = process.env.SERVER_URL || baseURL;
 } catch(e) {}
-console.log(baseURL);
 
 (function() {
     var storage = window.localStorage;
