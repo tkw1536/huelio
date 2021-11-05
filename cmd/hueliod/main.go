@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"embed"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -47,7 +49,23 @@ func main() {
 	go server.Start(context.Background())
 
 	server.Logger.Printf("Listening on %q", bindHost)
-	http.ListenAndServe(bindHost, server)
+
+	http.Handle("/api/", server)
+	http.Handle("/", distServer)
+	http.ListenAndServe(bindHost, nil)
+}
+
+//go:embed frontend/dist
+var dist embed.FS
+
+var distServer http.Handler
+
+func init() {
+	dist, err := fs.Sub(dist, "frontend/dist")
+	if err != nil {
+		panic(err)
+	}
+	distServer = http.FileServer(http.FS(dist))
 }
 
 var logger = log.New(os.Stderr, "", log.LstdFlags)

@@ -1,2 +1,8 @@
 cmd/huelio/huelio
 cmd/hueliod/hueliod
+
+cmd/hueliod/frontend/yarn-error.log
+cmd/hueliod/frontend/node_modules
+cmd/hueliod/frontend/.parcel-cache
+cmd/hueliod/frontend/dist
+cmd/hueliod/secrets.txt

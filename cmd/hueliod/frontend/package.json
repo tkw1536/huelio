@@ -1,0 +1,23 @@
+{
+  "name": "huelio-frontend",
+  "version": "1.0.0",
+  "license": "none",
+  "private": true,
+  "scripts": {
+    "dist": "NODE_ENV=production parcel build",
+    "dev": "NODE_ENV=development SERVER_URL=http://localhost:8080/api/ parcel serve"
+  },
+  "source": "index.html",
+  "targets": {
+    "default": {
+      "distDir": "./dist"
+    }
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^5.15.4",
+    "parcel": "^2.0.0"
+  },
+  "@parcel/transformer-js": {
+    "inlineEnvironment": true
+  }
+}

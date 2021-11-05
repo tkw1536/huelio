@@ -1,0 +1,117 @@
+html {
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    max-width: 100vw;
+}
+
+.title, .welcome {
+    text-align: center;
+    font-size: 2rem;
+}
+
+.search {
+    margin: 0;
+    border-bottom: 0.05rem solid;
+}
+
+.welcome {
+    display: none;
+}
+
+.welcome ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+
+.search input {
+    font-size: 3rem;
+    border: 0;
+    height: 6rem;
+    text-align: center;
+    outline: none;
+    border-style: none;
+    background-color: transparent;
+    color: inherit;
+    width: 100%;
+    padding: 0;
+}
+
+.search input:active {
+    position: sticky;
+    top: 0;
+}
+
+
+.result {
+    font-size: 2rem;
+    display: flex;
+    padding: 0.25rem;
+    cursor: pointer;
+}
+
+.result.active {
+    background-color: rgb(231, 231, 231);
+}
+
+.crumb {
+    border-radius: 1rem;
+    border: 0.05em solid;
+    padding: 1rem;
+    margin: 0.25rem;
+}
+
+.no-border {
+    border: none;
+}
+
+.red {
+    background-color: hsl(0, 100%, 45%);
+    border-color: hsl(0, 40%, 65%);
+    color: white;
+}
+
+.green {
+    background-color: hsl(143, 100%, 36%);
+    border-color: hsl(143, 80%, 56%);
+}
+
+.yellow {
+    background-color: hsl(60, 94%, 49%);
+    border-color:hsl(60, 74%, 69%);
+    color: black;
+}
+
+.orange {
+    background-color: hsl(39, 88%, 61%);
+    border-color: hsl(39, 68%, 81%);
+    color: black;
+}
+
+.blue {
+    background-color: hsl(240, 77%, 59%);
+    border-color: hsl(240, 57%, 79%);
+    color: white;
+}
+
+.purple {
+    background-color: hsl(271, 77%, 59%);
+    border-color: hsl(271, 57%, 79%);
+    color: white;
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: black;
+        color: white;
+    }
+
+    .result.active {
+        background-color: hsl(0, 0%, 50%);
+    }
+}
