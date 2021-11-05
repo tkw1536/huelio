@@ -22,6 +22,8 @@ type Server struct {
 // Start starts server background tasks.
 // It blocks and should be started in a seperate goroutine.
 func (server *Server) Start(context context.Context) {
+	go server.Engine.Link()
+
 	var c <-chan time.Time
 	if server.RefreshInterval > 0 {
 		ticker := time.NewTicker(server.RefreshInterval)
@@ -53,10 +55,10 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Println("OPTIONS")
 		server.writeJSON(w, http.StatusOK, jsonMessage{Message: "this is fine"})
 	case http.MethodPost:
-		log.Println("GET")
+		log.Println("POST")
 		server.serveAction(w, r)
 	case http.MethodGet:
-		log.Println("POST")
+		log.Println("GET")
 		server.serveQuery(w, r)
 	default:
 		server.writeJSON(w, http.StatusMethodNotAllowed, jsonMessage{Message: "method allowed"})

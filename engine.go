@@ -84,7 +84,7 @@ func (engine *Engine) Query(input string) ([]QueryAction, error) {
 	defer engine.l.RUnlock()
 
 	if engine.bridge == nil {
-		return engine.connectSpecial(input), nil
+		return engine.linkSpecial(input), nil
 	}
 
 	if engine.index == nil {
@@ -123,44 +123,55 @@ var ErrEngineNoConnect = errors.New("Engine: No Connect function")
 
 func (engine *Engine) doSpecial(special *HueSpecial, writeLock bool) error {
 	switch special.ID {
-	case connectAction.ID:
-		if !writeLock {
-			// this action requires a write lock
-			// so don't do it unless you still have one!
-			return ErrEngineInvalidSpecial
-		}
-
-		if engine.bridge != nil {
-			return nil
-		}
-
-		if engine.Connect == nil {
-			return ErrEngineNoConnect
-		}
-
-		bridge, err := engine.Connect()
-		if err != nil {
-			return err
-		}
-
-		atomic.StoreUint32(&engine.noWritableAction, 1)
-		engine.bridge = bridge
-
-		go engine.RefreshIndex()
-
-		return nil
+	case linkAction.ID:
+		return engine.linkInternal(true)
 	}
 	return ErrEngineInvalidSpecial
-
 }
 
-var connectAction HueSpecial
+// Link links the engine
+func (engine *Engine) Link() error {
+	engine.l.Lock()
+	defer engine.l.Unlock()
+
+	return engine.linkInternal(true)
+}
+
+func (engine *Engine) linkInternal(writeLock bool) error {
+	if !writeLock {
+		// this action requires a write lock
+		// so don't do it unless you still have one!
+		return ErrEngineInvalidSpecial
+	}
+
+	if engine.bridge != nil {
+		return nil
+	}
+
+	if engine.Connect == nil {
+		return ErrEngineNoConnect
+	}
+
+	bridge, err := engine.Connect()
+	if err != nil {
+		return err
+	}
+
+	atomic.StoreUint32(&engine.noWritableAction, 1)
+	engine.bridge = bridge
+
+	go engine.RefreshIndex()
+
+	return nil
+}
+
+var linkAction HueSpecial
 
 func init() {
-	connectAction.ID = "connect"
-	connectAction.Data.Message = "Connect to Hue Bridge"
+	linkAction.ID = "link"
+	linkAction.Data.Message = "Link Hue Bridge"
 }
 
-func (engine *Engine) connectSpecial(input string) []QueryAction {
-	return []QueryAction{{Special: &connectAction}}
+func (engine *Engine) linkSpecial(input string) []QueryAction {
+	return []QueryAction{{Special: &linkAction}}
 }
