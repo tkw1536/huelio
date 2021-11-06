@@ -6,54 +6,92 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/tkw1536/huelio"
+	"github.com/tkw1536/huelio/creds"
+	"github.com/tkw1536/huelio/logging"
 )
 
 func main() {
-	// create a new partial finder
-	pf := &huelio.PartialFinder{
-		Logger: logger,
-
-		NewName: apiNewUsername,
-
-		Username: apiUsername,
-		Hostname: apiHost,
-	}
-
 	// create a manager and a store
-	manager := &huelio.StoreManager{
-		Store:  &huelio.InMemoryStore{},
-		Finder: pf,
+	manager := &creds.Manager{
+		Store: &creds.InMemoryStore{},
+		Finder: creds.Finder{
+			NewName: flagHueNewUsername,
+
+			Username: flagHueUsername,
+			Hostname: flagHueHost,
+		},
 	}
-	if apiStore != "" {
-		manager.Store = huelio.JSONFileStore(apiStore)
+	if flagCredsPath != "" {
+		manager.Store = creds.JSONFileStore(flagCredsPath)
 	}
 
 	server := &huelio.Server{
 		Engine: &huelio.Engine{
 			Connect: manager.Connect,
 		},
-		Logger: logger,
 
-		RefreshInterval: refreshInterval,
+		RefreshInterval: flagCacheRefresh,
 	}
-	if apiCORS {
+	if flagServerCORS {
 		server.CORSDomains = "*"
 	}
 
 	go server.Start(context.Background())
 
-	server.Logger.Printf("Listening on %q", bindHost)
+	mux := http.NewServeMux()
+	mux.Handle("/api/", server)
+	mux.Handle("/", distServer)
 
-	http.Handle("/api/", server)
-	http.Handle("/", distServer)
-	http.ListenAndServe(bindHost, nil)
+	httpServer := &http.Server{
+		Addr:    flagServerBind,
+		Handler: mux,
+	}
+
+	errChan := make(chan error)
+	go func() {
+		logger.Info().Str("bind", flagServerBind).Msg("server listening")
+		errChan <- httpServer.ListenAndServe()
+	}()
+
+	go func() {
+		<-globalContext.Done()
+		logger.Info().Msg("server closing")
+		httpServer.Close()
+	}()
+
+	<-errChan
 }
+
+//
+// ctrl+c
+//
+
+var globalContext context.Context
+
+func init() {
+	var cancel context.CancelFunc
+	globalContext, cancel = context.WithCancel(context.Background())
+
+	cancelChan := make(chan os.Signal)
+	signal.Notify(cancelChan, os.Interrupt)
+
+	go func() {
+		<-cancelChan
+		cancel()
+	}()
+}
+
+//
+// static server
+//
 
 //go:embed frontend/dist
 var dist embed.FS
@@ -68,23 +106,38 @@ func init() {
 	distServer = http.FileServer(http.FS(dist))
 }
 
-var logger = log.New(os.Stderr, "", log.LstdFlags)
+//
+// logging
+//
 
-var bindHost string
+var logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-var apiStore string
+func initLogging() {
+	if flagQuiet {
+		logger = logger.Level(zerolog.Disabled)
+	}
+	logging.Init(&logger)
+}
 
-var apiHost string
-var apiUsername string
-var apiNewUsername = fmt.Sprintf("hueliod-%d", time.Now().UnixMilli())
+//
+// command line flags
+//
 
-var apiCORS bool
+var flagServerBind string = "localhost:8080"
+var flagServerCORS bool = false
 
-var refreshInterval time.Duration
+var flagCacheRefresh time.Duration = 1 * time.Minute
+
+var flagCredsPath string = ""
+var flagHueHost string = os.Getenv("HUE_HOST")
+var flagHueUsername string = os.Getenv("HUE_USER")
+var flagHueNewUsername = fmt.Sprintf("hueliod-%d", time.Now().UnixMilli())
+
+var flagQuiet bool = false
 
 func init() {
 	var legalFlag bool
-	flag.BoolVar(&legalFlag, "legal", legalFlag, "display legal notices and exit")
+	flag.BoolVar(&legalFlag, "legal", legalFlag, "Display legal notices and exit")
 	defer func() {
 		if legalFlag {
 			fmt.Print(huelio.LegalText())
@@ -92,14 +145,18 @@ func init() {
 		}
 	}()
 
+	flag.BoolVar(&flagQuiet, "quiet", flagQuiet, "Supress all logging output")
+	defer initLogging()
+
 	defer flag.Parse()
 
-	flag.DurationVar(&refreshInterval, "refresh", 1*time.Minute, "how often to refresh bridge cache")
-	flag.StringVar(&bindHost, "bind", "localhost:8080", "host to listen on")
+	flag.StringVar(&flagServerBind, "bind", flagServerBind, "Address to bind server on")
+	flag.BoolVar(&flagServerCORS, "cors", flagServerCORS, "Serve CORS headers")
 
-	flag.StringVar(&apiStore, "store", "", "path to store credentials. In-Memory store used when omitted.")
-	flag.StringVar(&apiHost, "host", os.Getenv("HUE_HOST"), "hue hostname")
-	flag.StringVar(&apiUsername, "user", os.Getenv("HUE_USER"), "hue username")
+	flag.DurationVar(&flagCacheRefresh, "refresh", flagCacheRefresh, "time to automatically refresh credentials on")
 
-	flag.BoolVar(&apiCORS, "cors", false, "add CORS headers")
+	flag.StringVar(&flagCredsPath, "store", flagCredsPath, "Path to read/write credentials from. When omitted, stores credentials in memory only. ")
+	flag.StringVar(&flagHueHost, "host", flagHueHost, "Host to use for connection to Hue Bridge. Can also be given via HUE_HOST environment variable. ")
+	flag.StringVar(&flagHueUsername, "user", flagHueUsername, "Username to use for connection to Hue Bridge. Can also be given via HUE_USER envionment variable. ")
+	flag.StringVar(&flagHueNewUsername, "new-user", flagHueNewUsername, "Username to use when generating new username for hue bridge. Dynamically determined based on current time. ")
 }

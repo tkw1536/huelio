@@ -6,6 +6,8 @@ import (
 
 	"github.com/amimof/huego"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	"github.com/tkw1536/huelio/logging"
 )
 
 // Engine coordinates an engine and index regeneration
@@ -23,6 +25,12 @@ type Engine struct {
 	indexErr error
 }
 
+var engineLogger zerolog.Logger
+
+func init() {
+	logging.ComponentLogger("Engine", &engineLogger)
+}
+
 func NewEngine(bridge *huego.Bridge) *Engine {
 	engine := &Engine{}
 	if bridge != nil {
@@ -31,7 +39,16 @@ func NewEngine(bridge *huego.Bridge) *Engine {
 	return engine
 }
 
-func (engine *Engine) RefreshIndex() error {
+func (engine *Engine) RefreshIndex() (err error) {
+	engineLogger.Info().Msg("refreshing index")
+	defer func() {
+		if err != nil {
+			engineLogger.Error().Err(err).Msg("index refresh failed")
+		} else {
+			engineLogger.Info().Msg("index refreshed")
+		}
+	}()
+
 	bridge, err := func() (*huego.Bridge, error) {
 		engine.l.RLock()
 		defer engine.l.RUnlock()

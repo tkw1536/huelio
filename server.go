@@ -3,25 +3,36 @@ package huelio
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	"github.com/tkw1536/huelio/logging"
 )
+
+var serverLogger zerolog.Logger
+
+func init() {
+	logging.ComponentLogger("Server", &serverLogger)
+}
 
 type Server struct {
 	CORSDomains     string
 	RefreshInterval time.Duration
 
-	Logger *log.Logger
 	Engine *Engine
 }
 
 // Start starts server background tasks.
 // It blocks and should be started in a seperate goroutine.
 func (server *Server) Start(context context.Context) {
+	serverLogger.Info().Msg("starting server background tasks")
+	defer func() {
+		serverLogger.Info().Msg("exiting server background tasks")
+	}()
+
 	go server.Engine.Link()
 
 	var c <-chan time.Time
@@ -35,9 +46,7 @@ func (server *Server) Start(context context.Context) {
 	for {
 		select {
 		case <-c:
-			server.Logger.Printf("Refreshing Index")
 			server.Engine.RefreshIndex()
-			server.Logger.Printf("Index refreshed")
 		case <-context.Done():
 			return
 		}
@@ -50,15 +59,13 @@ type jsonMessage struct {
 
 // ServeHTTP responds to a http request
 func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	serverLogger.Info().Str("method", r.Method).Stringer("url", r.URL).Msg("request")
 	switch r.Method {
 	case http.MethodOptions:
-		log.Println("OPTIONS")
 		server.writeJSON(w, http.StatusOK, jsonMessage{Message: "this is fine"})
 	case http.MethodPost:
-		log.Println("POST")
 		server.serveAction(w, r)
 	case http.MethodGet:
-		log.Println("GET")
 		server.serveQuery(w, r)
 	default:
 		server.writeJSON(w, http.StatusMethodNotAllowed, jsonMessage{Message: "method allowed"})
@@ -105,6 +112,8 @@ func (server *Server) doAction(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (server *Server) writeJSON(w http.ResponseWriter, statusCode int, content interface{}) {
+	serverLogger.Info().Int("status", statusCode).Msg("response")
+
 	bytes, err := json.Marshal(content)
 	if err != nil {
 		w.WriteHeader(statusCode)
