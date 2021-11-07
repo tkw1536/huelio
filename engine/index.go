@@ -1,4 +1,4 @@
-package huelio
+package engine
 
 import (
 	"strconv"
@@ -44,12 +44,12 @@ func NewIndex(bridge *huego.Bridge) (*Index, error) {
 }
 
 // QueryString sends a string query to this index
-func (index Index) QueryString(input string) []QueryAction {
+func (index Index) QueryString(input string) []Action {
 	return index.Query(ParseQuery(input))
 }
 
 // Query sends a list of queries to this index
-func (index Index) Query(queries []Query) (results []QueryAction) {
+func (index Index) Query(queries []Query) (results []Action) {
 	var scoring ScoreQueries
 	for _, g := range index.Groups {
 		scoring.Use(queries)
@@ -70,7 +70,7 @@ func (index Index) Query(queries []Query) (results []QueryAction) {
 				return -1
 			}
 		}); len(scores) > 0 {
-			results = append(results, QueryAction{
+			results = append(results, Action{
 				matchScores: scores,
 				Group:       theGroup,
 				OnOff:       BoolOn,
@@ -85,7 +85,7 @@ func (index Index) Query(queries []Query) (results []QueryAction) {
 				return -1
 			}
 		}); len(scores) > 0 {
-			results = append(results, QueryAction{
+			results = append(results, Action{
 				matchScores: scores,
 				Group:       theGroup,
 				OnOff:       BoolOff,
@@ -102,7 +102,7 @@ func (index Index) Query(queries []Query) (results []QueryAction) {
 			if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
 				return ScoreText(q.Change.Scene, s.Name)
 			}); len(scores) > 0 {
-				results = append(results, QueryAction{
+				results = append(results, Action{
 					matchScores: scores,
 					Group:       theGroup,
 					Scene:       NewHueScene(s),
@@ -130,7 +130,7 @@ func (index Index) Query(queries []Query) (results []QueryAction) {
 				return -1
 			}
 		}); len(scores) > 0 {
-			results = append(results, QueryAction{
+			results = append(results, Action{
 				matchScores: scores,
 				Light:       theLight,
 				OnOff:       BoolOn,
@@ -145,7 +145,7 @@ func (index Index) Query(queries []Query) (results []QueryAction) {
 				return -1
 			}
 		}); len(scores) > 0 {
-			results = append(results, QueryAction{
+			results = append(results, Action{
 				matchScores: scores,
 				Light:       theLight,
 				OnOff:       BoolOff,

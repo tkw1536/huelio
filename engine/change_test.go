@@ -1,4 +1,4 @@
-package huelio
+package engine
 
 import "fmt"
 

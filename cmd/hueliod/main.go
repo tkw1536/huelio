@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/tkw1536/huelio"
 	"github.com/tkw1536/huelio/creds"
+	"github.com/tkw1536/huelio/engine"
 	"github.com/tkw1536/huelio/logging"
 )
 
@@ -34,7 +35,7 @@ func main() {
 	}
 
 	server := &huelio.Server{
-		Engine: &huelio.Engine{
+		Engine: &engine.Engine{
 			Connect: manager.Connect,
 		},
 
@@ -44,7 +45,7 @@ func main() {
 		server.CORSDomains = "*"
 	}
 
-	go server.Start(context.Background())
+	go server.Start(globalContext)
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/", server)
@@ -112,13 +113,6 @@ func init() {
 
 var logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-func initLogging() {
-	if flagQuiet {
-		logger = logger.Level(zerolog.Disabled)
-	}
-	logging.Init(&logger)
-}
-
 //
 // command line flags
 //
@@ -133,10 +127,8 @@ var flagHueHost string = os.Getenv("HUE_HOST")
 var flagHueUsername string = os.Getenv("HUE_USER")
 var flagHueNewUsername = fmt.Sprintf("hueliod-%d", time.Now().UnixMilli())
 
-var flagQuiet bool = false
-
 func init() {
-	var legalFlag bool
+	var legalFlag bool = false
 	flag.BoolVar(&legalFlag, "legal", legalFlag, "Display legal notices and exit")
 	defer func() {
 		if legalFlag {
@@ -145,8 +137,14 @@ func init() {
 		}
 	}()
 
+	var flagQuiet bool = false
 	flag.BoolVar(&flagQuiet, "quiet", flagQuiet, "Supress all logging output")
-	defer initLogging()
+	defer func() {
+		if flagQuiet {
+			logger = logger.Level(zerolog.Disabled)
+		}
+		logging.Init(&logger)
+	}()
 
 	defer flag.Parse()
 

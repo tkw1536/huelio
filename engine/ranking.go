@@ -1,11 +1,11 @@
-package huelio
+package engine
 
 import (
 	"sort"
 	"strconv"
 )
 
-type ResultSlice []QueryAction
+type ResultSlice []Action
 
 func (r ResultSlice) Sort() {
 	r.ComputeScores()
@@ -22,8 +22,7 @@ func (r ResultSlice) Swap(i, j int) {
 	r[i], r[j] = r[j], r[i]
 }
 
-// LesserPriority checjk
-func (action QueryAction) LesserPriority(other QueryAction) bool {
+func (action Action) LesserPriority(other Action) bool {
 	scoresA := other.scores
 	scoresB := action.scores
 
@@ -46,7 +45,7 @@ func (r ResultSlice) ComputeScores() {
 	}
 }
 
-func (action QueryAction) MatchScore() (score float64) {
+func (action Action) MatchScore() (score float64) {
 	if len(action.matchScores) == 0 {
 		return 0
 	}
@@ -63,7 +62,7 @@ func (action QueryAction) MatchScore() (score float64) {
 	return -(score0 + score1)
 }
 
-func (action QueryAction) KindScore() float64 {
+func (action Action) KindScore() float64 {
 	isLight := action.Light != nil
 	isGroup := action.Group != nil
 
@@ -82,7 +81,7 @@ func (action QueryAction) KindScore() float64 {
 	}
 }
 
-func (action QueryAction) ItemIndexScore() float64 {
+func (action Action) ItemIndexScore() float64 {
 	if action.Group != nil {
 		return -float64(action.Group.ID)
 	}
@@ -92,7 +91,7 @@ func (action QueryAction) ItemIndexScore() float64 {
 	return 0
 }
 
-func (action QueryAction) ActionIndexScore() float64 {
+func (action Action) ActionIndexScore() float64 {
 	if action.Scene != nil {
 		i, _ := strconv.Atoi(action.Scene.ID)
 		return float64(i)

@@ -1,4 +1,4 @@
-package huelio
+package engine
 
 import (
 	"sync"
@@ -95,7 +95,7 @@ var ErrEngineMissingIndex = errors.New("Engine: missing index")
 var ErrEngineMissingBridge = errors.New("Engine: missing index")
 
 // Query queries the engine
-func (engine *Engine) Query(input string) ([]QueryAction, error) {
+func (engine *Engine) Query(input string) ([]Action, error) {
 
 	engine.l.RLock()
 	defer engine.l.RUnlock()
@@ -116,7 +116,7 @@ func (engine *Engine) Query(input string) ([]QueryAction, error) {
 }
 
 // Do performs the provided action
-func (engine *Engine) Do(action QueryAction) error {
+func (engine *Engine) Do(action Action) error {
 	var writelock bool
 	if atomic.LoadUint32(&engine.noWritableAction) == 0 {
 		writelock = true
@@ -189,6 +189,6 @@ func init() {
 	linkAction.Data.Message = "Link Hue Bridge"
 }
 
-func (engine *Engine) linkSpecial(input string) []QueryAction {
-	return []QueryAction{{Special: &linkAction}}
+func (engine *Engine) linkSpecial(input string) []Action {
+	return []Action{{Special: &linkAction}}
 }

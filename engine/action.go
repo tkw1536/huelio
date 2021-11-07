@@ -1,4 +1,4 @@
-package huelio
+package engine
 
 import (
 	"encoding/json"
@@ -8,8 +8,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// QueryAction represents the result of a query
-type QueryAction struct {
+// Action represents a result of a query
+type Action struct {
 	scores      [4]float64
 	matchScores [][]float64
 
@@ -22,6 +22,7 @@ type QueryAction struct {
 	Special *HueSpecial `json:"special,omitempty"`
 }
 
+// HueSpecial represents a special action that can be returned by the webserver
 type HueSpecial struct {
 	ID   string `json:"id"`
 	Data struct {
@@ -31,7 +32,7 @@ type HueSpecial struct {
 
 var ErrInvalidAction = errors.New("action.Do: Invalid action")
 
-func (action QueryAction) Do(bridge *huego.Bridge) error {
+func (action Action) Do(bridge *huego.Bridge) error {
 	switch {
 	case action.Group != nil:
 		if err := action.Group.Refresh(bridge); err != nil {
@@ -62,7 +63,7 @@ func (action QueryAction) Do(bridge *huego.Bridge) error {
 }
 
 // String stringifies the ex
-func (res QueryAction) String() string {
+func (res Action) String() string {
 	var name string
 	switch {
 	case res.Group != nil:

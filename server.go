@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/tkw1536/huelio/engine"
 	"github.com/tkw1536/huelio/logging"
 )
 
@@ -22,7 +23,7 @@ type Server struct {
 	CORSDomains     string
 	RefreshInterval time.Duration
 
-	Engine *Engine
+	Engine *engine.Engine
 }
 
 // Start starts server background tasks.
@@ -72,7 +73,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var emptyResultHack = []QueryAction{}
+var emptyResultHack = []engine.Action{}
 
 func (server *Server) serveQuery(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
@@ -103,7 +104,7 @@ func (server *Server) serveAction(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) doAction(w http.ResponseWriter, r *http.Request) error {
-	action := QueryAction{}
+	action := engine.Action{}
 	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
 		return errors.Wrap(err, "Unable to parse body")
 	}
