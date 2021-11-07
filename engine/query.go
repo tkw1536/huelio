@@ -3,121 +3,58 @@ package engine
 import (
 	"fmt"
 	"strings"
-	"sync"
+
+	"github.com/rs/zerolog"
+	"github.com/tkw1536/huelio/logging"
 )
 
-// Query describes an change for the huelio system.
+var queryLogger zerolog.Logger
+
+func init() {
+	logging.ComponentLogger("engine.Query", &queryLogger)
+}
+
+// Query describes a query for the huelio system.
 type Query struct {
-	// Name is the name of a Hue Object to fuzzy match against
+	// Name is the name of an action to pattern match against
 	Name string
-	// Change is a change to perform to the specified object
-	Change Change
+	// Action is the name of an action (scene or on/off) to pattern match against
+	Action string
 }
 
 func (q Query) String() string {
-	return fmt.Sprintf("%q: %s", q.Name, q.Change)
+	return fmt.Sprintf("name={%s} change={%s}", q.Name, q.Action)
 }
 
-// ParseQuery parses a query from the string
+// ParseQuery generates a set of queries from an input string
 func ParseQuery(value string) (passes []Query) {
-	// split the string into fields, normalizing to lower cases
-	fields := strings.Fields(strings.ToLower(value))
+	// split into whitespace-delimited fields
+	fields := strings.Fields(value)
 	if len(fields) == 0 {
 		return nil
 	}
 
-	// get a map of indexes to grab from the pool
-	indexes := makeQueryIndexes(fields)
-	defer queryIndexPool.Put(indexes)
+	// generate a set of "passes" of the fields.
+	//
+	// each reading pass consists of a contigous query.Name and query.Action part.
+	// the action or the name may come first, but both must be used.
+	// furthermore, each part may be empty.
+	//
+	// this means that there are 2*(len(fields) + 1) passes.
 
-	// "turn" "on" | "off" ROOM|LIGHT
-	if indexes["turn"] == 0 && (indexes[string(BoolOn)] == 2 || indexes[string(BoolOff)] == 2) && len(fields) >= 3 {
-		passes = append(passes, Query{
-			Name:   strings.Join(fields[2:], " "),
-			Change: ParseChange(fields[1]),
-		})
-	}
+	passes = make([]Query, 2*(len(fields)+1))
 
-	// "on" | "off" light
-	if (indexes[string(BoolOn)] == 1 || indexes[string(BoolOff)] == 1) && len(fields) >= 2 {
-		passes = append(passes, Query{
-			Name:   strings.Join(fields[1:], " "),
-			Change: ParseChange(fields[0]),
-		})
-	}
-
-	// [turn] light "on" | "off"
-	if indexes[string(BoolOn)] == len(fields) || indexes[string(BoolOff)] == len(fields) && len(fields) >= 2 {
-		last := len(fields) - 1
-		var name string
-		if indexes["turn"] == 1 {
-			name = strings.Join(fields[1:last], " ")
-		} else {
-			name = strings.Join(fields[:last], " ")
-		}
-		passes = append(passes, Query{
-			Name:   name,
-			Change: ParseChange(fields[last]),
-		})
-	}
-
-	// [turn] ROOM|LIGHT to ACTION
-	if indexes["to"] > 1 && len(fields) > indexes["to"]+1 {
-		action := ParseChange(strings.Join(fields[indexes["to"]+1:], " "))
-		if indexes["turn"] == 0 {
-			passes = append(passes, Query{
-				Name:   strings.Join(fields[1:indexes["to"]], " "),
-				Change: action,
-			})
-		} else {
-			passes = append(passes, Query{
-				Name:   strings.Join(fields[:indexes["to"]], " "),
-				Change: action,
-			})
-		}
-	}
-
+	var first, second string
 	for i := 0; i <= len(fields); i++ {
-		passes = append(passes, Query{
-			Name:   strings.Join(fields[:i], " "),
-			Change: ParseChange(strings.Join(fields[i:], " ")),
-		})
+		first = strings.Join(fields[:i], " ")
+		second = strings.Join(fields[i:], " ")
+
+		passes[2*i].Name = first
+		passes[2*i].Action = second
+
+		passes[2*i+1].Name = second
+		passes[2*i+1].Action = first
 	}
 
 	return
-}
-
-var parseQueryPrebuilts = map[string]struct{}{
-	"turn":          {},
-	string(BoolOn):  {},
-	string(BoolOff): {},
-	"to":            {},
-}
-
-var queryIndexPool = &sync.Pool{
-	New: func() interface{} {
-		return make(map[string]int, len(parseQueryPrebuilts))
-	},
-}
-
-// makeQueryIndexes computes indexes of parseQueryPrebuilts in values.
-//
-// The returned map, if not used otherwise, should be returned to queryIndexPool by the caller.
-func makeQueryIndexes(values []string) map[string]int {
-	// set the required indexes to 0
-	indexes := queryIndexPool.Get().(map[string]int)
-	for k := range parseQueryPrebuilts {
-		indexes[k] = 0
-	}
-
-	for i, v := range values {
-		if _, ok := parseQueryPrebuilts[v]; !ok {
-			continue
-		}
-		if indexes[v] == 0 {
-			indexes[v] = i
-		}
-	}
-
-	return indexes
 }

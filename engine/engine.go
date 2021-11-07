@@ -28,7 +28,7 @@ type Engine struct {
 var engineLogger zerolog.Logger
 
 func init() {
-	logging.ComponentLogger("Engine", &engineLogger)
+	logging.ComponentLogger("engine.Engine", &engineLogger)
 }
 
 func NewEngine(bridge *huego.Bridge) *Engine {

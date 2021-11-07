@@ -64,11 +64,7 @@ func (index Index) Query(queries []Query) (results []Action) {
 
 		// match the word "on"
 		if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
-			if q.Change.IsOnOff(BoolOn) {
-				return 0
-			} else {
-				return -1
-			}
+			return ScoreText(q.Action, string(BoolOn))
 		}); len(scores) > 0 {
 			results = append(results, Action{
 				matchScores: scores,
@@ -79,11 +75,7 @@ func (index Index) Query(queries []Query) (results []Action) {
 
 		// match the word "off"
 		if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
-			if q.Change.IsOnOff(BoolOff) {
-				return 0
-			} else {
-				return -1
-			}
+			return ScoreText(q.Action, string(BoolOff))
 		}); len(scores) > 0 {
 			results = append(results, Action{
 				matchScores: scores,
@@ -100,7 +92,7 @@ func (index Index) Query(queries []Query) (results []Action) {
 			}
 
 			if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
-				return ScoreText(q.Change.Scene, s.Name)
+				return ScoreText(q.Action, s.Name)
 			}); len(scores) > 0 {
 				results = append(results, Action{
 					matchScores: scores,
@@ -124,11 +116,7 @@ func (index Index) Query(queries []Query) (results []Action) {
 
 		// match the word "on"
 		if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
-			if q.Change.IsOnOff(BoolOn) {
-				return 0
-			} else {
-				return -1
-			}
+			return ScoreText(q.Action, string(BoolOn))
 		}); len(scores) > 0 {
 			results = append(results, Action{
 				matchScores: scores,
@@ -139,11 +127,7 @@ func (index Index) Query(queries []Query) (results []Action) {
 
 		// match the word "off"
 		if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
-			if q.Change.IsOnOff(BoolOff) {
-				return 0
-			} else {
-				return -1
-			}
+			return ScoreText(q.Action, string(BoolOff))
 		}); len(scores) > 0 {
 			results = append(results, Action{
 				matchScores: scores,
