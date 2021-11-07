@@ -20,7 +20,7 @@ type Manager struct {
 var managerLogger zerolog.Logger
 
 func init() {
-	logging.ComponentLogger("creds.Manager", &finderLogger)
+	logging.ComponentLogger("creds.Manager", &managerLogger)
 }
 
 // Connect connects to a Hue Bridge.
