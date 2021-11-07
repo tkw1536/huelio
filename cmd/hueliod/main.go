@@ -40,6 +40,8 @@ func main() {
 		},
 
 		RefreshInterval: flagCacheRefresh,
+
+		DebugData: flagDebug,
 	}
 	if flagServerCORS {
 		server.CORSDomains = "*"
@@ -119,6 +121,7 @@ var logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 var flagServerBind string = "localhost:8080"
 var flagServerCORS bool = false
+var flagDebug bool = false
 
 var flagCacheRefresh time.Duration = 1 * time.Minute
 
@@ -150,6 +153,7 @@ func init() {
 
 	flag.StringVar(&flagServerBind, "bind", flagServerBind, "Address to bind server on")
 	flag.BoolVar(&flagServerCORS, "cors", flagServerCORS, "Serve CORS headers")
+	flag.BoolVar(&flagDebug, "debug", flagDebug, "Send additional data for debugging with every API response")
 
 	flag.DurationVar(&flagCacheRefresh, "refresh", flagCacheRefresh, "time to automatically refresh credentials on")
 

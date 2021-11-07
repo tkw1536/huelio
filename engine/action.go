@@ -1,18 +1,14 @@
 package engine
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/amimof/huego"
 	"github.com/pkg/errors"
 )
 
-// Action represents a result of a query
+// Action represents  single action
 type Action struct {
-	scores      [4]float64
-	matchScores [][]float64
-
 	Group *HueGroup `json:"group,omitempty"`
 	Light *HueLight `json:"light,omitempty"`
 
@@ -21,6 +17,15 @@ type Action struct {
 
 	Special *HueSpecial `json:"special,omitempty"`
 }
+
+// BoolOnOff represents turning a scene on or off
+type BoolOnOff string
+
+const (
+	BoolAny BoolOnOff = ""
+	BoolOn  BoolOnOff = "on"
+	BoolOff BoolOnOff = "off"
+)
 
 // HueSpecial represents a special action that can be returned by the webserver
 type HueSpecial struct {
@@ -85,92 +90,4 @@ func (res Action) String() string {
 	}
 
 	return fmt.Sprintf("%s: %s", name, action)
-}
-
-// HueGroup represents a hue group
-type HueGroup struct {
-	ID   int         `json:"id"`
-	Data huego.Group `json:"data"`
-}
-
-func NewHueGroup(group huego.Group) *HueGroup {
-	return &HueGroup{
-		ID:   group.ID,
-		Data: group,
-	}
-}
-
-func (group *HueGroup) UnmarshalJSON(data []byte) error {
-	id := &struct {
-		ID int `json:"id"`
-	}{}
-	err := json.Unmarshal(data, &id)
-	group.ID = id.ID
-	return err
-}
-
-func (group *HueGroup) Refresh(bridge *huego.Bridge) error {
-	data, err := bridge.GetGroup(group.ID)
-	if data != nil {
-		group.Data = *data
-	}
-	return err
-}
-
-type HueLight struct {
-	ID   int         `json:"id"`
-	Data huego.Light `json:"data"`
-}
-
-func NewHueLight(light huego.Light) *HueLight {
-	return &HueLight{
-		ID:   light.ID,
-		Data: light,
-	}
-}
-
-func (light *HueLight) UnmarshalJSON(data []byte) error {
-	id := &struct {
-		ID int `json:"id"`
-	}{}
-	err := json.Unmarshal(data, &id)
-	light.ID = id.ID
-	return err
-}
-
-func (light *HueLight) Refresh(bridge *huego.Bridge) error {
-	data, err := bridge.GetLight(light.ID)
-	if data != nil {
-		light.Data = *data
-	}
-	return err
-}
-
-type HueScene struct {
-	ID   string      `json:"id"`
-	Data huego.Scene `json:"data"`
-}
-
-func NewHueScene(scene huego.Scene) *HueScene {
-	return &HueScene{
-		ID:   scene.ID,
-		Data: scene,
-	}
-}
-
-func (scene *HueScene) UnmarshalJSON(data []byte) error {
-	id := &struct {
-		ID string `json:"id"`
-	}{}
-	err := json.Unmarshal(data, &id)
-	scene.ID = id.ID
-	return err
-}
-
-func (scene *HueScene) Refresh(bridge *huego.Bridge) error {
-	data, err := bridge.GetScene(scene.ID)
-	if data != nil {
-		scene.Data = *data
-	}
-	return err
 }

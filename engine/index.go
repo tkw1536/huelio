@@ -2,14 +2,14 @@ package engine
 
 import (
 	"strconv"
+	"sync"
 
 	"github.com/amimof/huego"
-	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
 
-// Index is a data structure used to query the index
+// Index provides cached data contained in a hue bridge
 type Index struct {
 	Groups []huego.Group
 	Lights []huego.Light
@@ -18,7 +18,7 @@ type Index struct {
 
 var ErrIndexNilBridge = errors.New("NewIndex: bridge is nil")
 
-// NewIndex indexes the provided bridge
+// NewIndex creates an index of a given bridge
 func NewIndex(bridge *huego.Bridge) (*Index, error) {
 	if bridge == nil {
 		return nil, ErrIndexNilBridge
@@ -44,44 +44,56 @@ func NewIndex(bridge *huego.Bridge) (*Index, error) {
 }
 
 // QueryString sends a string query to this index
-func (index Index) QueryString(input string) []Action {
+func (index Index) QueryString(input string) ([]Action, []Score) {
 	return index.Query(ParseQuery(input))
 }
 
-// Query sends a list of queries to this index
-func (index Index) Query(queries []Query) (results []Action) {
-	var scoring ScoreQueries
+var scoringPool = &sync.Pool{
+	New: func() interface{} {
+		return new(ScoreQueries)
+	},
+}
+
+var resultsPool = &sync.Pool{
+	New: func() interface{} {
+		return new(Results)
+	},
+}
+
+// Query queries an index for a set of queries
+// It returns a list of matching actions
+func (index Index) Query(queries []Query) (actions []Action, scores []Score) {
+	scoring := scoringPool.Get().(*ScoreQueries)
+	defer scoringPool.Put(scoring)
+
+	results := resultsPool.Get().(*Results)
+	results.Reset(len(index.Groups) + len(index.Lights)) // todo: do we want to cache this?
+	defer resultsPool.Put(results)
+
 	for _, g := range index.Groups {
 		scoring.Use(queries)
 
-		if !scoring.Score(func(q Query) float64 {
-			return ScoreText(q.Name, g.Name)
-		}) {
+		theGroup := NewHueGroup(g)
+
+		if !scoring.Score(func(q Query) float64 { return q.MatchGroup(theGroup) }) {
+			groupPool.Put(theGroup)
 			continue
 		}
 
-		theGroup := NewHueGroup(g)
-
 		// match the word "on"
-		if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
-			return ScoreText(q.Action, string(BoolOn))
-		}); len(scores) > 0 {
-			results = append(results, Action{
-				matchScores: scores,
-				Group:       theGroup,
-				OnOff:       BoolOn,
-			})
+		if scores, _ := scoring.ScoreFinal(func(q Query) float64 { return q.MatchOnOff(BoolOn) }); len(scores) > 0 {
+			results.Add(Action{
+				Group: theGroup,
+				OnOff: BoolOn,
+			}, scores)
 		}
 
 		// match the word "off"
-		if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
-			return ScoreText(q.Action, string(BoolOff))
-		}); len(scores) > 0 {
-			results = append(results, Action{
-				matchScores: scores,
-				Group:       theGroup,
-				OnOff:       BoolOff,
-			})
+		if scores, _ := scoring.ScoreFinal(func(q Query) float64 { return q.MatchOnOff(BoolOff) }); len(scores) > 0 {
+			results.Add(Action{
+				Group: theGroup,
+				OnOff: BoolOff,
+			}, scores)
 		}
 
 		// iterate over scenes in this group!
@@ -91,59 +103,48 @@ func (index Index) Query(queries []Query) (results []Action) {
 				continue
 			}
 
-			if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
-				return ScoreText(q.Action, s.Name)
-			}); len(scores) > 0 {
-				results = append(results, Action{
-					matchScores: scores,
-					Group:       theGroup,
-					Scene:       NewHueScene(s),
-				})
+			theScene := NewHueScene(s)
+
+			scores, _ := scoring.ScoreFinal(func(q Query) float64 { return q.MatchScene(theScene) })
+			if len(scores) == 0 {
+				scenePool.Put(theScene)
+				continue
 			}
+
+			results.Add(Action{
+				Group: theGroup,
+				Scene: theScene,
+			}, scores)
 		}
 	}
 
 	for _, l := range index.Lights {
 		scoring.Use(queries)
 
-		if !scoring.Score(func(q Query) float64 {
-			return ScoreText(q.Name, l.Name)
-		}) {
+		theLight := NewHueLight(l)
+
+		if !scoring.Score(func(q Query) float64 { return q.MatchLight(theLight) }) {
+			lightPool.Put(theLight)
 			continue
 		}
 
-		theLight := NewHueLight(l)
-
 		// match the word "on"
-		if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
-			return ScoreText(q.Action, string(BoolOn))
-		}); len(scores) > 0 {
-			results = append(results, Action{
-				matchScores: scores,
-				Light:       theLight,
-				OnOff:       BoolOn,
-			})
+		if scores, _ := scoring.ScoreFinal(func(q Query) float64 { return q.MatchOnOff(BoolOn) }); len(scores) > 0 {
+			results.Add(Action{
+				Light: theLight,
+				OnOff: BoolOn,
+			}, scores)
 		}
 
 		// match the word "off"
-		if scores, _ := scoring.ScoreFinal(func(q Query) float64 {
-			return ScoreText(q.Action, string(BoolOff))
-		}); len(scores) > 0 {
-			results = append(results, Action{
-				matchScores: scores,
-				Light:       theLight,
-				OnOff:       BoolOff,
-			})
+		if scores, _ := scoring.ScoreFinal(func(q Query) float64 { return q.MatchOnOff(BoolOff) }); len(scores) > 0 {
+			results.Add(Action{
+				Light: theLight,
+				OnOff: BoolOff,
+			}, scores)
 		}
 
 	}
 
-	ResultSlice(results).Sort()
-
-	return results
-}
-
-func ScoreText(source, target string) float64 {
-	score := float64(fuzzy.RankMatchNormalizedFold(source, target))
-	return score / float64(len(target))
+	return results.Results()
 }

@@ -95,24 +95,26 @@ var ErrEngineMissingIndex = errors.New("Engine: missing index")
 var ErrEngineMissingBridge = errors.New("Engine: missing index")
 
 // Query queries the engine
-func (engine *Engine) Query(input string) ([]Action, error) {
+func (engine *Engine) Query(input string) ([]Action, []Score, error) {
 
 	engine.l.RLock()
 	defer engine.l.RUnlock()
 
 	if engine.bridge == nil {
-		return engine.linkSpecial(input), nil
+		actions, scores := engine.linkSpecial(input)
+		return actions, scores, nil
 	}
 
 	if engine.index == nil {
-		return nil, ErrEngineMissingIndex
+		return nil, nil, ErrEngineMissingIndex
 	}
 
 	if engine.indexErr != nil {
-		return nil, engine.indexErr
+		return nil, nil, engine.indexErr
 	}
 
-	return engine.index.QueryString(input), nil
+	actions, scores := engine.index.QueryString(input)
+	return actions, scores, nil
 }
 
 // Do performs the provided action
@@ -183,12 +185,13 @@ func (engine *Engine) linkInternal(writeLock bool) error {
 }
 
 var linkAction HueSpecial
+var linkScores [4]float64
 
 func init() {
 	linkAction.ID = "link"
 	linkAction.Data.Message = "Link Hue Bridge"
 }
 
-func (engine *Engine) linkSpecial(input string) []Action {
-	return []Action{{Special: &linkAction}}
+func (engine *Engine) linkSpecial(input string) ([]Action, []Score) {
+	return []Action{{Special: &linkAction}}, []Score{linkScores}
 }

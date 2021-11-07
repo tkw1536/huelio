@@ -20,8 +20,11 @@ func init() {
 }
 
 type Server struct {
-	CORSDomains     string
-	RefreshInterval time.Duration
+	RefreshInterval time.Duration // how often should the index be refreshed
+
+	DebugData bool // should we marshal out extra debug info (like scores, errors, etc)?
+
+	CORSDomains string // should we include cors headers on every API response?
 
 	Engine *engine.Engine
 }
@@ -73,8 +76,6 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var emptyResultHack = []engine.Action{}
-
 func (server *Server) serveQuery(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	the_query, ok := query["query"]
@@ -83,15 +84,17 @@ func (server *Server) serveQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := server.Engine.Query(strings.Join(the_query, " "))
+	res, scores, err := server.Engine.Query(strings.Join(the_query, " "))
 	if err != nil {
 		server.writeJSON(w, http.StatusInternalServerError, jsonMessage{Message: err.Error()})
 		return
 	}
-	if res == nil {
-		res = emptyResultHack
-	}
-	server.writeJSON(w, http.StatusOK, res)
+
+	server.writeJSON(w, http.StatusOK, MarshalResult{
+		Results:   res,
+		Scores:    scores,
+		WithScore: server.DebugData,
+	})
 }
 
 func (server *Server) serveAction(w http.ResponseWriter, r *http.Request) {
