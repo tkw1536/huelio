@@ -8,8 +8,9 @@ import (
 
 // MarshalResult is used to marshal result
 type MarshalResult struct {
-	Results []engine.Action
-	Scores  []engine.Score
+	Results    []engine.Action
+	Scores     []engine.Score
+	MatchScore []engine.MatchScore
 
 	// WithScore indicates if the scores should be marshaled
 	WithScore bool
@@ -26,12 +27,14 @@ func (result MarshalResult) MarshalJSON() ([]byte, error) {
 
 	withScores := make([]struct {
 		engine.Action
-		Scores engine.Score `json:"scores"`
+		Scores      engine.Score      `json:"scores"`
+		MatchScores engine.MatchScore `json:"matchScores"`
 	}, len(result.Results))
 
 	for i, r := range result.Results {
 		withScores[i].Action = r
 		withScores[i].Scores = result.Scores[i]
+		withScores[i].MatchScores = result.MatchScore[i]
 	}
 
 	return json.Marshal(withScores)

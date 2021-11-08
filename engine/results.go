@@ -9,20 +9,23 @@ import (
 
 // Ranking represents a set of results
 type Results struct {
-	actions []Action
-	scores  []Score
+	actions     []Action
+	scores      []Score
+	matchScores []MatchScore
 }
 
 // Reset resets this ranking slice for the provided cap
 func (r *Results) Reset(cap int) {
 	r.actions = make([]Action, 0, cap)
 	r.scores = make([]Score, 0, cap)
+	r.matchScores = make([]MatchScore, 0, cap)
 }
 
 // Add adds a new result to this result set
 func (r *Results) Add(action Action, matchScore MatchScore) {
 	r.actions = append(r.actions, action)
 	r.scores = append(r.scores, action.score(matchScore))
+	r.matchScores = append(r.matchScores, matchScore)
 }
 
 //
@@ -183,14 +186,15 @@ func (s Score) lessThan(other Score) bool {
 //
 
 // Actions returns the sorted version of results
-func (r *Results) Results() ([]Action, []Score) {
+func (r *Results) Results() ([]Action, []MatchScore, []Score) {
 	sort.Sort(r)
-	return r.actions, r.scores
+	return r.actions, r.matchScores, r.scores
 }
 
 func (r *Results) Swap(i, j int) {
 	r.actions[i], r.actions[j] = r.actions[j], r.actions[i]
 	r.scores[i], r.scores[j] = r.scores[j], r.scores[i]
+	r.matchScores[i], r.matchScores[j] = r.matchScores[j], r.matchScores[i]
 }
 
 func (r *Results) Len() int {

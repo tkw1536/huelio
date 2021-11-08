@@ -84,15 +84,18 @@ func (server *Server) serveQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, scores, err := server.Engine.Query(strings.Join(the_query, " "))
+	res, matches, scores, err := server.Engine.Query(strings.Join(the_query, " "))
 	if err != nil {
 		server.writeJSON(w, http.StatusInternalServerError, jsonMessage{Message: err.Error()})
 		return
 	}
 
 	server.writeJSON(w, http.StatusOK, MarshalResult{
-		Results:   res,
-		Scores:    scores,
+		Results: res,
+
+		Scores:     scores,
+		MatchScore: matches,
+
 		WithScore: server.DebugData,
 	})
 }

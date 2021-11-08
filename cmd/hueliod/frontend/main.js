@@ -213,6 +213,16 @@ function buildResult(obj) {
         result.append(scores)
     }
 
+    if(obj.matchScores) {
+        var matchScores = document.createElement('div')
+        matchScores.classList.add('crumb')
+        matchScores.innerHTML = obj.matchScores.join(',')
+
+        result.append(matchScores)
+    }
+
+    result
+
     return result
 }
 

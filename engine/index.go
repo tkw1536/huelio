@@ -44,7 +44,7 @@ func NewIndex(bridge *huego.Bridge) (*Index, error) {
 }
 
 // QueryString sends a string query to this index
-func (index Index) QueryString(input string) ([]Action, []Score) {
+func (index Index) QueryString(input string) ([]Action, []MatchScore, []Score) {
 	return index.Query(ParseQuery(input))
 }
 
@@ -62,7 +62,7 @@ var resultsPool = &sync.Pool{
 
 // Query queries an index for a set of queries
 // It returns a list of matching actions
-func (index Index) Query(queries []Query) (actions []Action, scores []Score) {
+func (index Index) Query(queries []Query) (actions []Action, matchScores []MatchScore, scores []Score) {
 	scoring := scoringPool.Get().(*ScoreQueries)
 	defer scoringPool.Put(scoring)
 

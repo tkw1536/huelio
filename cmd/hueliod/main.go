@@ -51,7 +51,12 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/", server)
-	mux.Handle("/", distServer)
+
+	if !flagDebug {
+		mux.Handle("/", distServer)
+	} else {
+		mux.Handle("/", http.FileServer(http.Dir("./frontend/dist")))
+	}
 
 	httpServer := &http.Server{
 		Addr:    flagServerBind,
@@ -153,7 +158,7 @@ func init() {
 
 	flag.StringVar(&flagServerBind, "bind", flagServerBind, "Address to bind server on")
 	flag.BoolVar(&flagServerCORS, "cors", flagServerCORS, "Serve CORS headers")
-	flag.BoolVar(&flagDebug, "debug", flagDebug, "Send additional data for debugging with every API response")
+	flag.BoolVar(&flagDebug, "debug", flagDebug, "Enable debugging mode: Send debug data and serve the frontend live instead of embedded")
 
 	flag.DurationVar(&flagCacheRefresh, "refresh", flagCacheRefresh, "time to automatically refresh credentials on")
 
