@@ -79,7 +79,7 @@ func main() {
 }
 
 //
-// ctrl+c
+// ctrl
 //
 
 var globalContext context.Context

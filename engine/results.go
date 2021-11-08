@@ -134,13 +134,13 @@ func (action Action) kindScore() float64 {
 
 	switch {
 	case isGroup && isOnOff:
-		return 3
-	case isGroup && isScene:
-		return 2
-	case isLight && isOnOff:
-		return 1
-	default:
 		return 0
+	case isGroup && isScene:
+		return 1
+	case isLight && isOnOff:
+		return 2
+	default:
+		return 3
 	}
 }
 
@@ -161,21 +161,24 @@ func (action Action) actionIndexScore() float64 {
 	}
 	switch action.OnOff {
 	case BoolOn:
-		return 2
-	case BoolOff:
 		return 1
+	case BoolOff:
+		return 2
 	}
 
 	return 0
 }
 
-// lessThan checks if s shoudld be ordered before other!
-func (s Score) lessThan(other Score) bool {
+// Less checks if s < other using lexiographic ordering
+func (s Score) Less(other Score) bool {
 	var b float64
 	for i, a := range s {
 		b = other[i]
-		if a < b {
+		switch {
+		case a < b:
 			return true
+		case a > b:
+			return false
 		}
 	}
 	return false
@@ -202,7 +205,7 @@ func (r *Results) Len() int {
 }
 
 func (r *Results) Less(i, j int) bool {
-	return r.scores[i].lessThan(r.scores[j])
+	return r.scores[i].Less(r.scores[j])
 }
 
 // ScoreQueries represents a buffer of queries to be scored and filtered
