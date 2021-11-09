@@ -205,23 +205,13 @@ function buildResult(obj) {
     result.append(lightRoom, arrow, toggleOrScene)
 
     // For debug
-    if(obj.scores) {
-        var scores = document.createElement('div')
-        scores.classList.add('crumb')
-        scores.innerHTML = obj.scores.join(',')
-
-        result.append(scores)
+    if(obj.debug) {
+        var debug = document.createElement('div')
+        debug.classList.add('crumb')
+        debug.innerHTML = JSON.stringify(obj.debug)
+        
+        result.append(debug)
     }
-
-    if(obj.matchScores) {
-        var matchScores = document.createElement('div')
-        matchScores.classList.add('crumb')
-        matchScores.innerHTML = obj.matchScores.join(',')
-
-        result.append(matchScores)
-    }
-
-    result
 
     return result
 }

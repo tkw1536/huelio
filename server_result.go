@@ -27,14 +27,16 @@ func (result MarshalResult) MarshalJSON() ([]byte, error) {
 
 	withScores := make([]struct {
 		engine.Action
-		Scores      engine.Score      `json:"scores"`
-		MatchScores engine.MatchScore `json:"matchScores"`
+		Debug struct {
+			Scores      engine.Score      `json:"scores"`
+			MatchScores engine.MatchScore `json:"matchScores"`
+		} `json:"debug"`
 	}, len(result.Results))
 
 	for i, r := range result.Results {
 		withScores[i].Action = r
-		withScores[i].Scores = result.Scores[i]
-		withScores[i].MatchScores = result.MatchScore[i]
+		withScores[i].Debug.Scores = result.Scores[i]
+		withScores[i].Debug.MatchScores = result.MatchScore[i]
 	}
 
 	return json.Marshal(withScores)
