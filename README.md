@@ -30,14 +30,14 @@ Then commit the result.
 ## Development
 
 ```bash
-cd cmd/hueliod/frontend
+cd frontend
 yarn install
 yarn dev
 ```
 
 ```bash
 cd cmd/hueliod
-go run main.go -bind localhost:8080 -cors -store secrets.txt
+go run main.go -debug -store secrets.txt
 ```
 
 ## License

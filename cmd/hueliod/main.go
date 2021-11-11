@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"embed"
 	"flag"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +14,7 @@ import (
 	"github.com/tkw1536/huelio"
 	"github.com/tkw1536/huelio/creds"
 	"github.com/tkw1536/huelio/engine"
+	"github.com/tkw1536/huelio/frontend"
 	"github.com/tkw1536/huelio/logging"
 )
 
@@ -53,9 +52,9 @@ func main() {
 	mux.Handle("/api/", server)
 
 	if !flagDebug {
-		mux.Handle("/", distServer)
+		mux.Handle("/", frontend.StaticHandler)
 	} else {
-		mux.Handle("/", http.FileServer(http.Dir("./frontend/dist")))
+		mux.Handle("/", http.FileServer(http.Dir("../../frontend/dist")))
 	}
 
 	httpServer := &http.Server{
@@ -95,23 +94,6 @@ func init() {
 		<-cancelChan
 		cancel()
 	}()
-}
-
-//
-// static server
-//
-
-//go:embed frontend/dist
-var dist embed.FS
-
-var distServer http.Handler
-
-func init() {
-	dist, err := fs.Sub(dist, "frontend/dist")
-	if err != nil {
-		panic(err)
-	}
-	distServer = http.FileServer(http.FS(dist))
 }
 
 //
