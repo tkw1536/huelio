@@ -33,8 +33,11 @@ type webviewbackend struct{}
 func (webviewbackend) create(params WindowParams) (interface{}, error) {
 	w := webview.New(false)
 	w.SetTitle(params.Title)
-	w.SetSize(800, 600, webview.HintFixed)
+	w.SetSize(params.Width, params.Height, webview.HintFixed)
 	w.Navigate(params.URL)
+	w.Bind("InjectedHostContext", func() (value interface{}, err error) {
+		return nil, nil
+	})
 	return w, nil
 }
 

@@ -1,4 +1,4 @@
-package huelio
+package service
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 var serverLogger zerolog.Logger
 
 func init() {
-	logging.ComponentLogger("Server", &serverLogger)
+	logging.ComponentLogger("service.Server", &serverLogger)
 }
 
 type Server struct {

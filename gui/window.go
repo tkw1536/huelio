@@ -53,6 +53,8 @@ type windowLoop struct {
 type WindowParams struct {
 	Title string
 	URL   string
+
+	Width, Height int
 }
 
 func (wl *windowLoop) Open(params WindowParams) bool {

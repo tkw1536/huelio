@@ -13,6 +13,10 @@ body {
     font-size: 2rem;
 }
 
+.hueliog {
+    display: none;
+}
+
 .search {
     margin: 0;
     border-bottom: 0.05rem solid;

@@ -3,6 +3,18 @@ try {
     baseURL = process.env.SERVER_URL || baseURL;
 } catch(e) {}
 
+// magically check if we're in hueliod or hueliog
+var isHuelioG = false;
+try {
+    isHuelioG = typeof InjectedHostContext === 'function'; 
+} catch(e) {}
+
+if (isHuelioG) {
+    window.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.hueliog').forEach(e => e.classList.remove('hueliog'));
+    });
+}
+
 (function() {
     var storage = window.localStorage;
     if(!storage) {

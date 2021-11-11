@@ -1,4 +1,4 @@
-package huelio
+package service
 
 import (
 	"encoding/json"
