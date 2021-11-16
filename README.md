@@ -27,6 +27,17 @@ make -B legal.go
 
 Then commit the result.
 
+## Deployment
+
+![CI Status](https://github.com/tkw1536/huelio/workflows/docker/badge.svg)
+
+Available as a Docker Image on [GitHub Packages](https://github.com/tkw1536/huelio/pkgs/container/hueliod).
+Automatically built on every commit.
+
+```bash
+ docker run -ti -v credentials:/data/ -p 8080:8080 ghcr.io/tkw1536/hueliod
+```
+
 ## Development
 
 ```bash
