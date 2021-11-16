@@ -1,4 +1,4 @@
-FROM docker.io/library/alpine:3 as os
+FROM docker.io/library/alpine:3.14 as os
 
 # install ca-certificates
 RUN apk add --update --no-cache ca-certificates
@@ -24,7 +24,7 @@ RUN go get ./cmd/hueliod
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o hueliod ./cmd/hueliod
 
 # add it into a scratch image
-FROM alpine:3
+FROM docker.io/library/alpine:3.14
 
 # add the user
 COPY --from=os /etc/passwd /etc/passwd
