@@ -1,0 +1,10 @@
+cmd/huelio/huelio
+cmd/hueliod/hueliod
+
+cmd/hueliog/secrets.txt
+cmd/hueliod/secrets.txt
+
+frontend/yarn-error.log
+frontend/node_modules
+frontend/.parcel-cache
+frontend/dist
