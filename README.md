@@ -29,7 +29,7 @@ Then commit the result.
 
 ## Deployment
 
-![CI Status](https://github.com/tkw1536/huelio/workflows/docker/badge.svg)
+[![Publish Docker Image](https://github.com/tkw1536/huelio/actions/workflows/docker.yml/badge.svg)](https://github.com/tkw1536/huelio/actions/workflows/docker.yml)
 
 Available as a Docker Image on [GitHub Packages](https://github.com/tkw1536/huelio/pkgs/container/hueliod).
 Automatically built on every commit.
