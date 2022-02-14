@@ -9,8 +9,8 @@ RUN set -x ; \
   adduser -u 82 -D -S -G www-data www-data && exit 0 ; exit 1
 
 # build the frontend
-FROM docker.io/library/node:16-alpine3.14 as frontend
-RUN apk add --update --no-cache python3 alpine-sdk
+FROM docker.io/library/node:16-bullseye-slim as frontend
+RUN apt-get update && apt-get -y install build-essential python3
 ADD frontend /app/frontend/
 WORKDIR /app/frontend/
 RUN yarn install --frozen-lockfile
