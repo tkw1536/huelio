@@ -14,10 +14,10 @@ cmd/hueliod/hueliod: frontend/dist
 	cd cmd/hueliod/ && go build
 
 frontend/dist:
-	cd cmd/hueliod/frontend && yarn dist
+	cd frontend && yarn dist
 
 frontend/node-modules: frontend/package.json frontend/yarn.lock
-	cd cmd/hueliod/frontend && yarn install --frozen-lockfile 
+	cd frontend && yarn install --frozen-lockfile 
 
 clean:
 	rm -rf cmd/hueliod/hueliod
