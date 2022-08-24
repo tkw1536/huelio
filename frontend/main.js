@@ -1,3 +1,9 @@
+// set the huelio version
+(function(version){
+    document.querySelector('#version').innerText = 'v' + version
+    document.title = 'huelio v' + version
+})(require("./package.json").version)
+
 var baseURL = '/api/';
 try {
     baseURL = process.env.SERVER_URL || baseURL;
