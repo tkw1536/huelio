@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -107,7 +109,11 @@ func (s ServiceConfig) Main(listener net.Listener, context context.Context) {
 	if !s.Debug {
 		mux.Handle("/", frontend.StaticHandler)
 	} else {
-		mux.Handle("/", http.FileServer(http.Dir("../../frontend/dist"))) // assumed to be run from cmd/huelio*/main
+		// find the dist directorys
+		_, fn, _, _ := runtime.Caller(0)
+		dist := filepath.Join(filepath.Dir(fn), "..", "frontend", "dist")
+		// and run a fileserver
+		mux.Handle("/", http.FileServer(http.Dir(dist)))
 	}
 
 	httpServer := &http.Server{
