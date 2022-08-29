@@ -34,7 +34,7 @@ if (isHuelioG) {
 
 // Changing the search placeholder regularly
 window.setInterval(() => {
-    var placeholders = ['link','<room> <scene>', '<scene>', '<room> on', '<room> off', 'off', 'on']
+    var placeholders = ['link','<room> <scene>', '<room> <color>', '<scene>', '<room> on', '<room> off', 'off', 'on']
 
     var pick = Math.trunc(Math.random() * placeholders.length - 1)
 
