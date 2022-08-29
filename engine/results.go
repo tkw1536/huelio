@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/lithammer/fuzzysearch/fuzzy"
+	"github.com/mazznoer/csscolorparser"
 )
 
 // Ranking represents a set of results
@@ -50,6 +51,15 @@ func (query Query) MatchScene(scene *HueScene) float64 {
 // MatchOnOff scores the action stored in this scene against an on/off action.
 func (query Query) MatchOnOff(onoff BoolOnOff) float64 {
 	return scoreText(query.Action, string(onoff))
+}
+
+// MatchColor scores the action in this scene against a color action.
+func (query Query) MatchColor() (color string, score float64) {
+	c, err := csscolorparser.Parse(query.Action)
+	if err != nil || c.A != 1 {
+		return "", -1.0
+	}
+	return c.HexString(), 1.0
 }
 
 // scoreText is the main scoring function.
@@ -245,13 +255,25 @@ func (sq *ScoreQueries) Score(scoring func(q Query) float64) bool {
 }
 
 func (sq ScoreQueries) ScoreFinal(scoring func(q Query) float64) (scores MatchScore, queries []Query) {
+	scores, queries, _ = sq.ScoreFinalAnnot(func(q Query) (interface{}, float64) {
+		return struct{}{}, scoring(q)
+	})
+	return
+}
+
+func (sq ScoreQueries) ScoreFinalAnnot(scoring func(q Query) (interface{}, float64)) (scores MatchScore, queries []Query, annot interface{}) {
 	queries = make([]Query, 0, len(sq.Queries))
 	scores = make([][]float64, 0, len(sq.Queries))
 
+	var hadAnnot bool
 	for i, q := range sq.Queries {
-		score := scoring(q)
+		lAnnot, score := scoring(q)
 		if score < 0 {
 			continue
+		}
+		if !hadAnnot {
+			hadAnnot = true
+			annot = lAnnot
 		}
 		queries = append(queries, q)
 

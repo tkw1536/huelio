@@ -96,6 +96,14 @@ func (index Index) Query(queries []Query) (actions []Action, matchScores []Match
 			}, scores)
 		}
 
+		// match the color
+		if scores, _, color := scoring.ScoreFinalAnnot(func(q Query) (interface{}, float64) { return q.MatchColor() }); len(scores) > 0 {
+			results.Add(Action{
+				Group: theGroup,
+				Color: color.(string),
+			}, scores)
+		}
+
 		// iterate over scenes in this group!
 		gID := strconv.Itoa(g.ID)
 		for _, s := range index.Scenes {
@@ -141,6 +149,14 @@ func (index Index) Query(queries []Query) (actions []Action, matchScores []Match
 			results.Add(Action{
 				Light: theLight,
 				OnOff: BoolOff,
+			}, scores)
+		}
+
+		// match the color
+		if scores, _, color := scoring.ScoreFinalAnnot(func(q Query) (interface{}, float64) { return q.MatchColor() }); len(scores) > 0 {
+			results.Add(Action{
+				Light: theLight,
+				Color: color.(string),
 			}, scores)
 		}
 
