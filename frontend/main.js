@@ -183,7 +183,7 @@ function buildResult(obj) {
     if(obj.special) {
         var special = document.createElement('div')
         special.classList.add('crumb', 'purple')
-        special.innerHTML = '<i class="fas fa-cog">&nbsp;</i><span>' + obj.special.data.message + '</span>'
+        special.innerHTML = '<i class="fas fa-cog">&nbsp;</i><span>' + escapeHTML(obj.special.data.message) + '</span>'
         result.append(special)
         
         return result
@@ -194,10 +194,10 @@ function buildResult(obj) {
 
     if(obj.light) {
         lightRoom.classList.add('crumb', 'yellow')
-        lightRoom.innerHTML = '<i class="fas fa-lightbulb"></i>&nbsp;<span>' + obj.light.data.name + '</span>'
+        lightRoom.innerHTML = '<i class="fas fa-lightbulb"></i>&nbsp;<span>' + escapeHTML(obj.light.data.name) + '</span>'
     } else {
         lightRoom.classList.add('crumb', 'orange')
-        lightRoom.innerHTML = '<i class="fas fa-layer-group"></i>&nbsp;<span>' + obj.group.data.name + '</span>'
+        lightRoom.innerHTML = '<i class="fas fa-layer-group"></i>&nbsp;<span>' + escapeHTML(obj.group.data.name) + '</span>'
     }
 
     var toggleOrScene = document.createElement('div')
@@ -214,7 +214,7 @@ function buildResult(obj) {
         toggleOrScene.innerHTML = '<i class="fas fa-toggle-on">&nbsp;</i><span style="color:'+ obj.color+ '">' + obj.color + '</span>'
         toggleOrScene.classList.add('white')
     } else {
-        toggleOrScene.innerHTML = '<i class="fas fa-toggle-on">&nbsp;</i><span>' + obj.scene.data.name + '</span>'
+        toggleOrScene.innerHTML = '<i class="fas fa-toggle-on">&nbsp;</i><span>' + escapeHTML(obj.scene.data.name) + '</span>'
         toggleOrScene.classList.add('blue')
     }
 
@@ -302,6 +302,12 @@ function changeSelection(key) {
 
     resultList[newIdx].classList.add('active')
     resultList[newIdx].scrollIntoView(false)
+}
+
+function escapeHTML(value) {
+    var element = document.createElement('span')
+    element.append(document.createTextNode(value))
+    return element.innerHTML
 }
 
 function resetSearch() {
