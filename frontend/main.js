@@ -211,7 +211,7 @@ function buildResult(obj) {
             toggleOrScene.classList.add('green')
         }
     } else if(obj.color) {
-        toggleOrScene.innerHTML = '<i class="fas fa-toggle-on">&nbsp;</i><span style="color:'+ obj.color+ '">' + obj.color + '</span>'
+        toggleOrScene.innerHTML = '<i class="fas fa-toggle-on" style="color:'+ obj.color+ '">&nbsp;</i><span class="circle" style="background-color:'+ obj.color+ '"></span><span>' + obj.color.toUpperCase() + '</span>'
         toggleOrScene.classList.add('white')
     } else {
         toggleOrScene.innerHTML = '<i class="fas fa-toggle-on">&nbsp;</i><span>' + escapeHTML(obj.scene.data.name) + '</span>'
