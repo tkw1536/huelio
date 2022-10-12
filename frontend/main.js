@@ -12,7 +12,7 @@ try {
 // magically check if we're in hueliod or hueliog
 var isHuelioG = false;
 try {
-    isHuelioG = typeof InjectedHostContext === 'function'; 
+    isHuelioG = typeof InjectedHostContext === 'function';
 } catch(e) {}
 
 if (isHuelioG) {
@@ -61,6 +61,36 @@ document.onkeydown = function checkKey(e) {
             });
             break;
 
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+            const idx = (e.key - '0') - 1
+            console.log(idx)
+
+            var results = document.querySelector('.results');
+            var resultList = results.querySelectorAll('.result');
+
+            if(resultList.length < idx + 1) {
+                return // selected item doesn't exist
+            }
+
+            runAction(resultList[idx].getAttribute('data-action')).then(response => {
+                if (!response.ok) {
+                    throw new Error('POST response not OK')
+                } else {
+                    resetSearch();
+                }
+            }).catch(error => {
+                console.error('Fetch failed', error)
+            });
+
+            break;
 
         default:
             search();
@@ -104,7 +134,7 @@ function updateResults(term) {
         document.querySelector('.results').innerHTML = ''
         return
     }
-    
+
     /**
     handleResults([
         {
@@ -147,7 +177,17 @@ function handleResults(resultsArray) {
 
     for (let i = 0; i < resultsArray.length; i++) {
         const e = resultsArray[i];
-        resultDivs.push(buildResult(e))
+        const res = buildResult(e)
+
+        // Add numbers for the first 9 results (can select with number keys)
+        if(i < 9) {
+            const number = document.createElement('div')
+            number.innerHTML = '<span>' + (i + 1) + '</span>';
+            number.classList.add('crumb', 'no-border')   
+            res.prepend(number)
+        }
+
+        resultDivs.push(res)
     }
 
     if(resultDivs.length) {
@@ -185,7 +225,7 @@ function buildResult(obj) {
         special.classList.add('crumb', 'purple')
         special.innerHTML = '<i class="fas fa-cog">&nbsp;</i><span>' + escapeHTML(obj.special.data.message) + '</span>'
         result.append(special)
-        
+
         return result
     }
 
@@ -230,7 +270,7 @@ function buildResult(obj) {
         var debug = document.createElement('div')
         debug.classList.add('crumb')
         debug.innerHTML = JSON.stringify(obj.debug)
-        
+
         result.append(debug)
     }
 
