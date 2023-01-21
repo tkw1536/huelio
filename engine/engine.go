@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"sync"
 	"sync/atomic"
 
@@ -119,6 +120,8 @@ func (engine *Engine) Query(input string) ([]Action, []MatchScore, []Score, erro
 
 // Do performs the provided action
 func (engine *Engine) Do(action Action) error {
+	engine.logDo(action)
+
 	var writelock bool
 	if atomic.LoadUint32(&engine.noWritableAction) == 0 {
 		writelock = true
@@ -135,6 +138,16 @@ func (engine *Engine) Do(action Action) error {
 	}
 
 	return action.Do(engine.bridge)
+}
+
+func (engine *Engine) logDo(action Action) error {
+	bytes, err := json.Marshal(action)
+	if err != nil {
+		return err
+	}
+
+	engineLogger.Info().Str("action", string(bytes)).Msg("performing action")
+	return nil
 }
 
 var ErrEngineInvalidSpecial = errors.New("Engine: invalid special action")
