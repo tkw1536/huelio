@@ -146,7 +146,7 @@ func (engine *Engine) logDo(action Action) error {
 		return err
 	}
 
-	engineLogger.Info().Str("action", string(bytes)).Msg("performing action")
+	engineLogger.Info().RawJSON("action", bytes).Msg("performing action")
 	return nil
 }
 

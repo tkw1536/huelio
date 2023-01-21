@@ -103,10 +103,6 @@ func (m MatchScore) AsFloat64() (total float64) {
 	maxes := make([]float64, subScoreCount)
 	copy(maxes, m[0])
 
-	for i, v := range m[0] {
-		maxes[i] = v
-	}
-
 	for _, score := range m[1:] {
 		if len(score) != subScoreCount {
 			return 0 // mismatching length, shouldn't happen

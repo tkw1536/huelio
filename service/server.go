@@ -90,7 +90,7 @@ func (server *Server) serveQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.writeJSON(w, http.StatusOK, MarshalResult{
+	server.writeJSON(w, http.StatusOK, result{
 		Results: res,
 
 		Scores:     scores,

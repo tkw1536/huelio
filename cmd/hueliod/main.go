@@ -9,7 +9,6 @@ import (
 	"os/signal"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/tkw1536/huelio"
 	"github.com/tkw1536/huelio/logging"
 	"github.com/tkw1536/huelio/service"
@@ -17,11 +16,11 @@ import (
 
 func main() {
 	listener, err := net.Listen("tcp", flagServerBind)
-	defer listener.Close()
 	if err != nil {
 		logger.Error().Err(err).Msg("Unable to listen")
 		return
 	}
+	defer listener.Close()
 	config.Main(listener, globalContext)
 }
 
@@ -48,7 +47,7 @@ func init() {
 // command line flags
 //
 
-var logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+var logger = zerolog.New(os.Stdout)
 var config = service.DefaultConfig()
 
 var flagServerBind = "localhost:8080"
