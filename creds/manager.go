@@ -1,31 +1,29 @@
 package creds
 
 import (
+	"context"
 	"sync"
 
 	"github.com/amimof/huego"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/tkw1536/huelio/logging"
 )
 
 // Manager manages credentials for a single Hue Bridge
 type Manager struct {
 	l sync.Mutex
 
+	Ctx context.Context
+
 	Finder Finder
 	Store  Store
-}
-
-var managerLogger zerolog.Logger
-
-func init() {
-	logging.ComponentLogger("creds.Manager", &managerLogger)
 }
 
 // Connect connects to a Hue Bridge.
 // It is intended to be used by engine.Connect.
 func (sm *Manager) Connect() (*huego.Bridge, error) {
+	managerLogger := zerolog.Ctx(sm.Ctx).With().Str("component", "creds.Manager").Logger()
+
 	sm.l.Lock()
 	defer sm.l.Unlock()
 

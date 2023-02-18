@@ -7,10 +7,10 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/tkw1536/huelio"
-	"github.com/tkw1536/huelio/logging"
 	"github.com/tkw1536/huelio/service"
 )
 
@@ -21,26 +21,30 @@ func main() {
 		return
 	}
 	defer listener.Close()
-	config.Main(listener, globalContext)
+	config.Main(listener)
 }
 
 //
 // ctrl+c
 //
 
-var globalContext context.Context
+func initcontext() {
+	logger = logger.Output(zerolog.ConsoleWriter{
+		Out:        os.Stderr,
+		TimeFormat: time.DateTime,
+	}).With().Timestamp().Logger()
 
-func init() {
+	config.Ctx = logger.WithContext(context.Background())
+
+	// handle ctrl + c
 	var cancel context.CancelFunc
-	globalContext, cancel = context.WithCancel(context.Background())
-
-	cancelChan := make(chan os.Signal)
-	signal.Notify(cancelChan, os.Interrupt)
+	config.Ctx, cancel = signal.NotifyContext(config.Ctx, os.Interrupt)
 
 	go func() {
-		<-cancelChan
-		cancel()
+		defer cancel()
+		<-config.Ctx.Done()
 	}()
+
 }
 
 //
@@ -53,6 +57,8 @@ var config = service.DefaultConfig()
 var flagServerBind = "localhost:8080"
 
 func init() {
+	defer initcontext()
+
 	var legalFlag bool = false
 	flag.BoolVar(&legalFlag, "legal", legalFlag, "Display legal notices and exit")
 	defer func() {
@@ -68,7 +74,6 @@ func init() {
 		if flagQuiet {
 			logger = logger.Level(zerolog.Disabled)
 		}
-		logging.Init(&logger)
 	}()
 
 	config.AddFlagsTo(nil)

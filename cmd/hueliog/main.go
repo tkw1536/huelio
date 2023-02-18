@@ -1,3 +1,5 @@
+//go:build gui
+
 package main
 
 import (
@@ -13,7 +15,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/tkw1536/huelio"
 	"github.com/tkw1536/huelio/gui"
-	"github.com/tkw1536/huelio/logging"
 	"github.com/tkw1536/huelio/service"
 )
 
@@ -32,16 +33,16 @@ func main() {
 
 	doneChan := make(chan struct{})
 	go func() {
-		config.Main(iL, globalContext)
+		config.Main(iL, config.Ctx)
 		close(doneChan)
 	}()
 
 	go func() {
-		<-globalContext.Done()
+		<-config.Ctx.Done()
 		ww.Close()
 	}()
 
-	listener := gui.NewComboListener(gui.NewKeyCombination("ctrl+h"), globalContext)
+	listener := gui.NewComboListener(gui.NewKeyCombination("ctrl+h"), config.Ctx)
 	go func() {
 		for range listener {
 			ww.OpenOrFocus(gui.WindowParams{
@@ -62,19 +63,17 @@ func main() {
 // ctrl+c
 //
 
-var globalContext context.Context
+func initctrlc() {
+	config.Ctx = logger.WithContext(context.Background())
 
-func init() {
 	var cancel context.CancelFunc
-	globalContext, cancel = context.WithCancel(context.Background())
-
-	cancelChan := make(chan os.Signal)
-	signal.Notify(cancelChan, os.Interrupt)
+	config.Ctx, cancel = signal.NotifyContext(config.Ctx, os.Interrupt)
 
 	go func() {
-		<-cancelChan
-		cancel()
+		defer cancel()
+		<-config.Ctx.Done()
 	}()
+
 }
 
 //
@@ -87,6 +86,8 @@ var config = service.DefaultConfig()
 var flagCombo = "ctrl+h"
 
 func init() {
+	defer initctrlc()
+
 	var legalFlag bool = false
 	flag.BoolVar(&legalFlag, "legal", legalFlag, "Display legal notices and exit")
 	defer func() {
@@ -102,7 +103,6 @@ func init() {
 		if flagQuiet {
 			logger = logger.Level(zerolog.Disabled)
 		}
-		logging.Init(&logger)
 	}()
 
 	config.AddFlagsTo(nil)

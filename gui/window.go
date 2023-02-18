@@ -1,10 +1,12 @@
+//go:build gui
+
 package gui
 
 import (
+	"context"
 	"sync"
 
 	"github.com/rs/zerolog"
-	"github.com/tkw1536/huelio/logging"
 )
 
 // WindowLoop represents a window that keeps being shown
@@ -42,6 +44,8 @@ func NewWindowLoop(backend WindowBackend) WindowLoop {
 // windowLoop represents an eternal windowLoop
 type windowLoop struct {
 	backend WindowBackend
+
+	Ctx context.Context
 
 	wnChan chan WindowParams // send to open a new window!
 	wfChan chan struct{}     // send to focus the window!
@@ -107,6 +111,8 @@ func (ww *windowLoop) Close() {
 //
 // It *must* be called on the main thread; as such the main() function should call it.
 func (ww *windowLoop) Run() {
+	windowLogger := zerolog.Ctx(ww.Ctx).With().Str("component", "gui.Window").Logger()
+
 	for p := range ww.wnChan {
 		windowLogger.Info().Msg("Opening new window")
 		wwDone := make(chan struct{})
@@ -138,10 +144,4 @@ func (ww *windowLoop) Run() {
 
 		windowLogger.Info().Msg("Window closed")
 	}
-}
-
-var windowLogger zerolog.Logger
-
-func init() {
-	logging.ComponentLogger("gui.WindowLoop", &windowLogger)
 }

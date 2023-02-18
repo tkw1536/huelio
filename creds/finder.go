@@ -1,27 +1,25 @@
 package creds
 
 import (
+	"context"
+
 	"github.com/amimof/huego"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/tkw1536/huelio/logging"
 )
 
 // Finder finds credentials on a Hue Bridge
 type Finder struct {
+	Ctx context.Context
+
 	NewName string
 
 	Hostname string
 	Username string
 }
 
-var finderLogger zerolog.Logger
-
-func init() {
-	logging.ComponentLogger("creds.Finder", &finderLogger)
-}
-
 func (pf Finder) Find() (*Credentials, error) {
+	finderLogger := zerolog.Ctx(pf.Ctx).With().Str("component", "creds.Finder").Logger()
 	if pf.Hostname != "" && pf.Username != "" {
 		finderLogger.Info().Str("hostname", pf.Hostname).Msg("using provided credentials")
 

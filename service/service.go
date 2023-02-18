@@ -15,16 +15,10 @@ import (
 	"github.com/tkw1536/huelio/creds"
 	"github.com/tkw1536/huelio/engine"
 	"github.com/tkw1536/huelio/frontend"
-	"github.com/tkw1536/huelio/logging"
 )
 
-var serviceLogger zerolog.Logger
-
-func init() {
-	logging.ComponentLogger("service.Service", &serviceLogger)
-}
-
 type ServiceConfig struct {
+	Ctx        context.Context
 	ServerCORS bool
 
 	Quiet bool
@@ -39,8 +33,15 @@ type ServiceConfig struct {
 	HueNewUsername string
 }
 
+func (s *ServiceConfig) logger() zerolog.Logger {
+	return zerolog.Ctx(s.Ctx).With().Str("component", "service.Service").Logger()
+}
+
+// DefaultConfig returns a new default config
 func DefaultConfig() ServiceConfig {
 	return ServiceConfig{
+		Ctx: context.Background(),
+
 		ServerCORS: false,
 
 		Debug: false,
@@ -73,11 +74,14 @@ func (s *ServiceConfig) AddFlagsTo(flagset *flag.FlagSet) {
 }
 
 // Main Starts the service and returns when it is finished
-func (s ServiceConfig) Main(listener net.Listener, context context.Context) {
+func (s ServiceConfig) Main(listener net.Listener) {
+	serviceLogger := s.logger()
 	// create a manager and a store
 	manager := &creds.Manager{
+		Ctx:   s.Ctx,
 		Store: &creds.InMemoryStore{},
 		Finder: creds.Finder{
+			Ctx:     s.Ctx,
 			NewName: s.HueNewUsername,
 
 			Username: s.HueUsername,
@@ -89,7 +93,10 @@ func (s ServiceConfig) Main(listener net.Listener, context context.Context) {
 	}
 
 	server := &Server{
+		Ctx: s.Ctx,
+
 		Engine: &engine.Engine{
+			Ctx:     s.Ctx,
 			Connect: manager.Connect,
 		},
 
@@ -101,7 +108,7 @@ func (s ServiceConfig) Main(listener net.Listener, context context.Context) {
 		server.CORSDomains = "*"
 	}
 
-	go server.Start(context)
+	go server.Start()
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/", server)
@@ -127,7 +134,7 @@ func (s ServiceConfig) Main(listener net.Listener, context context.Context) {
 	}()
 
 	go func() {
-		<-context.Done()
+		<-s.Ctx.Done()
 		serviceLogger.Info().Msg("server closing")
 		httpServer.Close()
 	}()

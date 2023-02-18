@@ -3,16 +3,7 @@ package engine
 import (
 	"fmt"
 	"strings"
-
-	"github.com/rs/zerolog"
-	"github.com/tkw1536/huelio/logging"
 )
-
-var queryLogger zerolog.Logger
-
-func init() {
-	logging.ComponentLogger("engine.Query", &queryLogger)
-}
 
 // Query describes a query for the huelio system.
 type Query struct {

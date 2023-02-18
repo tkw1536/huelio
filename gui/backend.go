@@ -1,3 +1,5 @@
+//go:build gui
+
 package gui
 
 import "github.com/webview/webview"

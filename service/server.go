@@ -10,16 +10,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/tkw1536/huelio/engine"
-	"github.com/tkw1536/huelio/logging"
 )
 
-var serverLogger zerolog.Logger
-
-func init() {
-	logging.ComponentLogger("service.Server", &serverLogger)
-}
-
 type Server struct {
+	Ctx context.Context
+
 	RefreshInterval time.Duration // how often should the index be refreshed
 
 	DebugData bool // should we marshal out extra debug info (like scores, errors, etc)?
@@ -29,9 +24,15 @@ type Server struct {
 	Engine *engine.Engine
 }
 
+func (server *Server) logger() zerolog.Logger {
+	return zerolog.Ctx(server.Ctx).With().Str("component", "service.Server").Logger()
+}
+
 // Start starts server background tasks.
 // It blocks and should be started in a seperate goroutine.
-func (server *Server) Start(context context.Context) {
+func (server *Server) Start() {
+	serverLogger := server.logger()
+
 	serverLogger.Info().Msg("starting server background tasks")
 	defer func() {
 		serverLogger.Info().Msg("exiting server background tasks")
@@ -51,7 +52,7 @@ func (server *Server) Start(context context.Context) {
 		select {
 		case <-c:
 			server.Engine.RefreshIndex()
-		case <-context.Done():
+		case <-server.Ctx.Done():
 			return
 		}
 	}
@@ -63,6 +64,8 @@ type jsonMessage struct {
 
 // ServeHTTP responds to a http request
 func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	serverLogger := server.logger()
+
 	serverLogger.Info().Str("method", r.Method).Stringer("url", r.URL).Msg("request")
 	switch r.Method {
 	case http.MethodOptions:
@@ -119,6 +122,7 @@ func (server *Server) doAction(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (server *Server) writeJSON(w http.ResponseWriter, statusCode int, content interface{}) {
+	serverLogger := server.logger()
 	serverLogger.Info().Int("status", statusCode).Msg("response")
 
 	bytes, err := json.Marshal(content)

@@ -1,3 +1,5 @@
+//go:build gui
+
 // Package gui contains bindings for the huelio gui
 package gui
 
