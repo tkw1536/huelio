@@ -44,13 +44,13 @@ func NewIndex(bridge *huego.Bridge) (*Index, error) {
 }
 
 // QueryString sends a string query to this index
-func (index Index) QueryString(input string) ([]Action, []MatchScore, []Score) {
+func (index Index) QueryString(input string) ([]Action, []BufferScore, []Score) {
 	return index.Query(ParseQuery(input))
 }
 
-var scoringPool = &sync.Pool{
+var stringBufferPool = &sync.Pool{
 	New: func() interface{} {
-		return new(ScoreQueries)
+		return new(QueryBuffer[string])
 	},
 }
 
@@ -61,10 +61,9 @@ var resultsPool = &sync.Pool{
 }
 
 // Query queries an index for a set of queries
-// It returns a list of matching actions
-func (index Index) Query(queries []Query) (actions []Action, matchScores []MatchScore, scores []Score) {
-	scoring := scoringPool.Get().(*ScoreQueries)
-	defer scoringPool.Put(scoring)
+func (index Index) Query(queries []Query) (actions []Action, matchScores []BufferScore, scores []Score) {
+	scoring := stringBufferPool.Get().(*QueryBuffer[string])
+	defer stringBufferPool.Put(scoring)
 
 	results := resultsPool.Get().(*Results)
 	results.Reset(len(index.Groups) + len(index.Lights)) // todo: do we want to cache this?
@@ -81,7 +80,7 @@ func (index Index) Query(queries []Query) (actions []Action, matchScores []Match
 		}
 
 		// match the word "on"
-		if scores, _ := scoring.ScoreFinal(func(q Query) float64 { return q.MatchOnOff(BoolOn) }); len(scores) > 0 {
+		if scores, _ := scoring.Finalize(func(q Query) float64 { return q.MatchOnOff(BoolOn) }); len(scores) > 0 {
 			results.Add(Action{
 				Group: theGroup,
 				OnOff: BoolOn,
@@ -89,7 +88,7 @@ func (index Index) Query(queries []Query) (actions []Action, matchScores []Match
 		}
 
 		// match the word "off"
-		if scores, _ := scoring.ScoreFinal(func(q Query) float64 { return q.MatchOnOff(BoolOff) }); len(scores) > 0 {
+		if scores, _ := scoring.Finalize(func(q Query) float64 { return q.MatchOnOff(BoolOff) }); len(scores) > 0 {
 			results.Add(Action{
 				Group: theGroup,
 				OnOff: BoolOff,
@@ -97,10 +96,10 @@ func (index Index) Query(queries []Query) (actions []Action, matchScores []Match
 		}
 
 		// match the color
-		if scores, _, color := scoring.ScoreFinalAnnot(func(q Query) (interface{}, float64) { return q.MatchColor() }); len(scores) > 0 {
+		if scores, _, color := scoring.FinalizeAnnot(func(q Query) (string, float64) { return q.MatchColor() }); len(scores) > 0 {
 			results.Add(Action{
 				Group: theGroup,
-				Color: color.(string),
+				Color: color,
 			}, scores)
 		}
 
@@ -113,7 +112,7 @@ func (index Index) Query(queries []Query) (actions []Action, matchScores []Match
 
 			theScene := NewHueScene(s)
 
-			scores, _ := scoring.ScoreFinal(func(q Query) float64 { return q.MatchScene(theScene) })
+			scores, _ := scoring.Finalize(func(q Query) float64 { return q.MatchScene(theScene) })
 			if len(scores) == 0 {
 				scenePool.Put(theScene)
 				continue
@@ -137,7 +136,7 @@ func (index Index) Query(queries []Query) (actions []Action, matchScores []Match
 		}
 
 		// match the word "on"
-		if scores, _ := scoring.ScoreFinal(func(q Query) float64 { return q.MatchOnOff(BoolOn) }); len(scores) > 0 {
+		if scores, _ := scoring.Finalize(func(q Query) float64 { return q.MatchOnOff(BoolOn) }); len(scores) > 0 {
 			results.Add(Action{
 				Light: theLight,
 				OnOff: BoolOn,
@@ -145,7 +144,7 @@ func (index Index) Query(queries []Query) (actions []Action, matchScores []Match
 		}
 
 		// match the word "off"
-		if scores, _ := scoring.ScoreFinal(func(q Query) float64 { return q.MatchOnOff(BoolOff) }); len(scores) > 0 {
+		if scores, _ := scoring.Finalize(func(q Query) float64 { return q.MatchOnOff(BoolOff) }); len(scores) > 0 {
 			results.Add(Action{
 				Light: theLight,
 				OnOff: BoolOff,
@@ -153,10 +152,10 @@ func (index Index) Query(queries []Query) (actions []Action, matchScores []Match
 		}
 
 		// match the color
-		if scores, _, color := scoring.ScoreFinalAnnot(func(q Query) (interface{}, float64) { return q.MatchColor() }); len(scores) > 0 {
+		if scores, _, color := scoring.FinalizeAnnot(func(q Query) (string, float64) { return q.MatchColor() }); len(scores) > 0 {
 			results.Add(Action{
 				Light: theLight,
-				Color: color.(string),
+				Color: color,
 			}, scores)
 		}
 

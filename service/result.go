@@ -10,7 +10,7 @@ import (
 type result struct {
 	Results    []engine.Action
 	Scores     []engine.Score
-	MatchScore []engine.MatchScore
+	MatchScore []engine.BufferScore
 
 	WithScore bool // if true, marshal the scores and send them to the client
 }
@@ -30,8 +30,8 @@ func (r result) MarshalJSON() ([]byte, error) {
 		withScores := make([]struct {
 			engine.Action
 			Debug struct {
-				Scores      engine.Score      `json:"scores"`
-				MatchScores engine.MatchScore `json:"matchScores"`
+				Scores      engine.Score       `json:"scores"`
+				MatchScores engine.BufferScore `json:"matchScores"`
 			} `json:"debug"`
 		}, len(r.Results))
 

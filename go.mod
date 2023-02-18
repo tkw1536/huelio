@@ -1,6 +1,6 @@
 module github.com/tkw1536/huelio
 
-go 1.18
+go 1.19
 
 require (
 	github.com/amimof/huego v1.2.0
