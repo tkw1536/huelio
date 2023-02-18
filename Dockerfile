@@ -17,7 +17,7 @@ RUN yarn install --frozen-lockfile
 RUN yarn dist
 
 # build the backend
-FROM docker.io/library/golang:1.17 as builder
+FROM docker.io/library/golang:1.20 as builder
 ADD . /app/
 WORKDIR /app/
 COPY --from=frontend /app/frontend/dist /app/frontend/dist
