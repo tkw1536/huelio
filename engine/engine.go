@@ -1,6 +1,8 @@
+// Package engine provides Engine and Index
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 	"sync/atomic"
@@ -8,14 +10,13 @@ import (
 	"github.com/amimof/huego"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/tkw1536/huelio/logging"
 )
 
-// Engine coordinates an engine and index regeneration
 type Engine struct {
-	noWritableAction uint32 // do we need a wriable lock to do actions?
+	readOnly uint32       // actions should be considered read-onlt
+	l        sync.RWMutex // m protects the rest of this struct
 
-	l sync.RWMutex // m protects the rest of this struct
+	Ctx context.Context
 
 	// Connect is a user-defined function to connect to a bridge
 	Connect func() (bridge *huego.Bridge, err error)
@@ -26,27 +27,32 @@ type Engine struct {
 	indexErr error
 }
 
-var engineLogger zerolog.Logger
-
-func init() {
-	logging.ComponentLogger("engine.Engine", &engineLogger)
-}
-
-func NewEngine(bridge *huego.Bridge) *Engine {
-	engine := &Engine{}
+// NewEngine creates a new engine with the given context and bridge.
+// If bridge is nil, the bridge is not set.
+func NewEngine(bridge *huego.Bridge, ctx context.Context) *Engine {
+	engine := &Engine{
+		Ctx: ctx,
+	}
 	if bridge != nil {
 		engine.SetBridge(bridge)
 	}
 	return engine
 }
 
+// RefreshIndex refreshes the index on this engine
 func (engine *Engine) RefreshIndex() (err error) {
-	engineLogger.Info().Msg("refreshing index")
+	if cerr := engine.Ctx.Err(); cerr != nil {
+		return cerr
+	}
+
+	logger := zerolog.Ctx(engine.Ctx)
+
+	logger.Info().Msg("refreshing index")
 	defer func() {
 		if err != nil {
-			engineLogger.Error().Err(err).Msg("index refresh failed")
+			logger.Error().Err(err).Msg("index refresh failed")
 		} else {
-			engineLogger.Info().Msg("index refreshed")
+			logger.Info().Msg("index refreshed")
 		}
 	}()
 
@@ -64,12 +70,12 @@ func (engine *Engine) RefreshIndex() (err error) {
 		return err
 	}
 
-	index, indexErr := NewIndex(bridge)
+	index, indexErr := NewIndex(bridge, engine.Ctx)
 
 	engine.l.Lock()
 	defer engine.l.Unlock()
 
-	engine.index = index
+	engine.index = &index
 	engine.indexErr = indexErr
 
 	return engine.indexErr
@@ -80,7 +86,7 @@ func (engine *Engine) SetBridge(bridge *huego.Bridge) {
 		panic("SetBridge: bridge is nil")
 	}
 
-	atomic.StoreUint32(&engine.noWritableAction, 1)
+	atomic.StoreUint32(&engine.readOnly, 1)
 
 	engine.l.Lock()
 	defer engine.l.Unlock()
@@ -123,7 +129,7 @@ func (engine *Engine) Do(action Action) error {
 	engine.logDo(action)
 
 	var writelock bool
-	if atomic.LoadUint32(&engine.noWritableAction) == 0 {
+	if atomic.LoadUint32(&engine.readOnly) == 0 {
 		writelock = true
 
 		engine.l.Lock()
@@ -146,7 +152,7 @@ func (engine *Engine) logDo(action Action) error {
 		return err
 	}
 
-	engineLogger.Info().RawJSON("action", bytes).Msg("performing action")
+	zerolog.Ctx(engine.Ctx).Info().RawJSON("action", bytes).Msg("performing action")
 	return nil
 }
 
@@ -189,7 +195,7 @@ func (engine *Engine) linkInternal(writeLock bool) error {
 		return err
 	}
 
-	atomic.StoreUint32(&engine.noWritableAction, 1)
+	atomic.StoreUint32(&engine.readOnly, 1)
 	engine.bridge = bridge
 
 	go engine.RefreshIndex()
